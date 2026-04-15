@@ -1,0 +1,305 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:palee_elite_training_center/widgets/app_text_field.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/utils/responsive_utils.dart';
+import '../../core/utils/format_utils.dart';
+import '../../models/tuition_payment_model.dart';
+import '../../providers/registration_provider.dart';
+import '../../providers/tuition_payment_provider.dart';
+import '../../widgets/app_data_table.dart';
+import '../../screens/registration_screen/widgets/status_badge.dart';
+import 'widgets/modern_reg_table.dart';
+import 'widgets/tuition_payment_dialog.dart';
+
+class TuitionPaymentScreen extends ConsumerStatefulWidget {
+  const TuitionPaymentScreen({super.key});
+
+  @override
+  ConsumerState<TuitionPaymentScreen> createState() =>
+      _TuitionPaymentScreenState();
+}
+
+class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
+  String _searchText = '';
+  final _searchController = TextEditingController();
+  String? _selectedRegId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(registrationProvider.notifier).getRegistrations();
+      ref.read(tuitionPaymentProvider.notifier).getPayments();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String _formatKip(double value) => FormatUtils.formatKip(value.toInt());
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = context.isMobile;
+    final regState = ref.watch(registrationProvider);
+
+    final leftWidth = context.responsiveValue(
+      mobile: double.infinity,
+      tablet: 360.0,
+      desktop: 550.0,
+      wideDesktop: 720.0,
+    );
+
+    if (isMobile) {
+      return Column(
+        children: [
+          SizedBox(height: 300, child: _buildStudentList(regState)),
+          const Divider(height: 1, thickness: 1),
+          Expanded(child: _buildAllPaymentHistory()),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        SizedBox(width: leftWidth, child: _buildStudentList(regState)),
+        Expanded(child: _buildAllPaymentHistory()),
+      ],
+    );
+  }
+
+  Widget _buildStudentList(regState) {
+    final regs = regState.registrations;
+    final filtered = _searchText.isEmpty
+        ? regs
+        : regs.where((r) {
+            final q = _searchText.toLowerCase();
+            return r.registrationId.toLowerCase().contains(q) ||
+                r.studentFullName.toLowerCase().contains(q);
+          }).toList();
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ກວດສອບການລົງທະບຽນ',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          AppTextField(
+            controller: _searchController,
+            label: '',
+            hint: 'ຄົ້ນຫາການລົງທະບຽນ...',
+            prefixIcon: const Icon(Icons.search, size: 18),
+            onChanged: (v) => setState(() => _searchText = v),
+            fontSize: 16,
+            suffixIcon: _searchText.isNotEmpty
+                ? MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: IconButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchText = '');
+                      },
+                      icon: const Icon(Icons.close, size: 18),
+                    ),
+                  )
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ModernRegTable(
+              data: filtered,
+              formatKip: _formatKip,
+              selectedId: _selectedRegId,
+              onSelectionChanged: (id) {
+                setState(() {
+                  _selectedRegId = id;
+                });
+              },
+              onRowTap: (reg) async {
+                await TuitionPaymentDialog.show(
+                  context: context,
+                  registration: reg,
+                  onPaymentComplete: () {
+                    ref.read(registrationProvider.notifier).getRegistrations();
+                    ref.read(tuitionPaymentProvider.notifier).getPayments();
+                  },
+                );
+              },
+              isLoading: regState.isLoading && regs.isEmpty,
+              showRadio: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllPaymentHistory() {
+    return _AllPaymentHistorySection(formatKip: _formatKip);
+  }
+}
+
+class _AllPaymentHistorySection extends ConsumerWidget {
+  final String Function(double) formatKip;
+
+  const _AllPaymentHistorySection({required this.formatKip});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allPayments = ref.watch(
+      tuitionPaymentProvider.select((s) => s.payments),
+    );
+    final isLoading = ref.watch(
+      tuitionPaymentProvider.select((s) => s.isLoading),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 16, bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Text(
+                'ປະຫວັດການຈ່າຍຄ່າຮຽນທັງໝົດ',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.foreground,
+                ),
+              ),
+              const Spacer(),
+              if (allPayments.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${allPayments.length} ລາຍການ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Expanded(
+            child: AppDataTable<TuitionPaymentModel>(
+              title: 'ປະຫວັດການຈ່າຍຄ່າຮຽນທັງໝົດ',
+              data: allPayments,
+              columns: [
+                DataColumnDef<TuitionPaymentModel>(
+                  key: 'tuitionPaymentId',
+                  label: 'ລະຫັດ',
+                  flex: 1,
+                  render: (value, row) => Text(
+                    value?.toString() ?? '-',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                DataColumnDef<TuitionPaymentModel>(
+                  key: 'studentName',
+                  label: 'ຊື່ນັກຮຽນ',
+                  flex: 2,
+                  render: (value, row) => Text(
+                    value?.toString() ?? '-',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                DataColumnDef<TuitionPaymentModel>(
+                  key: 'paidAmount',
+                  label: 'ຈ່າຍແລ້ວ',
+                  flex: 2,
+                  render: (value, row) => Text(
+                    formatKip(value as double),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ),
+                DataColumnDef<TuitionPaymentModel>(
+                  key: 'paymentMethod',
+                  label: 'ຈ່າຍດ້ວຍ',
+                  flex: 1,
+                  render: (value, row) => StatusBadge(status: value.toString()),
+                ),
+                DataColumnDef<TuitionPaymentModel>(
+                  key: 'payDate',
+                  label: 'ວັນທີຈ່າຍ',
+                  flex: 3,
+                ),
+              ],
+              onDelete: (row) => _showDeleteConfirmation(context, ref, row),
+              showActions: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+    TuitionPaymentModel row,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('????????????'),
+        content: Text('????????????????????? ${row.tuitionPaymentId}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('???????'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final success = await ref
+                  .read(tuitionPaymentProvider.notifier)
+                  .deletePayment(row.tuitionPaymentId);
+              ref.read(registrationProvider.notifier).getRegistrations();
+              ref.read(tuitionPaymentProvider.notifier).getPayments();
+              if (success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('????????????????????'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              '???',
+              style: TextStyle(color: AppColors.destructive),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
