@@ -10,8 +10,23 @@ import 'package:printing/printing.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../../models/fee_model.dart';
 import '../../core/constants/app_colors.dart';
+import '../../services/registration_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
+
+final RegistrationService _registrationService = RegistrationService();
+
+String _ensurePdfExtension(String path) {
+  final trimmed = path.trim();
+  if (trimmed.toLowerCase().endsWith('.pdf')) {
+    return trimmed;
+  }
+  return '$trimmed.pdf';
+}
+
+bool _shouldUseServerReceiptRenderer() {
+  return true;
+}
 
 Future<void> showRegistrationPrintDialog({
   required BuildContext context,
@@ -19,15 +34,22 @@ Future<void> showRegistrationPrintDialog({
   required String registrationDate,
   required String studentName,
   required List<FeeModel> selectedFees,
+  required int tuitionFee,
+  required String? dormitoryLabel,
+  required int dormitoryFee,
   required int totalFee,
   required int discountAmount,
   required int netFee,
+  VoidCallback? onPreviewReady,
 }) async {
   final pdfBytes = await _buildPdf(
     registrationId: registrationId,
     registrationDate: registrationDate,
     studentName: studentName,
     selectedFees: selectedFees,
+    tuitionFee: tuitionFee,
+    dormitoryLabel: dormitoryLabel,
+    dormitoryFee: dormitoryFee,
     totalFee: totalFee,
     discountAmount: discountAmount,
     netFee: netFee,
@@ -36,13 +58,34 @@ Future<void> showRegistrationPrintDialog({
   if (pdfBytes == null) return;
 
   if (context.mounted) {
-    await showDialog(
+    onPreviewReady?.call();
+    await showPdfPrintDialog(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (_) =>
-          _PrintDialog(pdfBytes: pdfBytes, registrationId: registrationId),
+      pdfBytes: pdfBytes,
+      documentId: registrationId,
+      title: 'ພິມໃບລົງທະບຽນ',
+      fileNamePrefix: 'register',
     );
   }
+}
+
+Future<void> showPdfPrintDialog({
+  required BuildContext context,
+  required Uint8List pdfBytes,
+  required String documentId,
+  required String title,
+  required String fileNamePrefix,
+}) {
+  return showDialog(
+    context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.6),
+    builder: (_) => _PrintDialog(
+      pdfBytes: pdfBytes,
+      documentId: documentId,
+      title: title,
+      fileNamePrefix: fileNamePrefix,
+    ),
+  );
 }
 
 Future<void> printRegistrationReceipt({
@@ -51,25 +94,40 @@ Future<void> printRegistrationReceipt({
   required String registrationDate,
   required String studentName,
   required List<FeeModel> selectedFees,
+  required int tuitionFee,
+  required String? dormitoryLabel,
+  required int dormitoryFee,
   required int totalFee,
   required int discountAmount,
   required int netFee,
+  VoidCallback? onPreviewReady,
 }) => showRegistrationPrintDialog(
   context: context,
   registrationId: registrationId,
   registrationDate: registrationDate,
   studentName: studentName,
   selectedFees: selectedFees,
+  tuitionFee: tuitionFee,
+  dormitoryLabel: dormitoryLabel,
+  dormitoryFee: dormitoryFee,
   totalFee: totalFee,
   discountAmount: discountAmount,
   netFee: netFee,
+  onPreviewReady: onPreviewReady,
 );
 
 class _PrintDialog extends StatefulWidget {
   final Uint8List pdfBytes;
-  final String registrationId;
+  final String documentId;
+  final String title;
+  final String fileNamePrefix;
 
-  const _PrintDialog({required this.pdfBytes, required this.registrationId});
+  const _PrintDialog({
+    required this.pdfBytes,
+    required this.documentId,
+    required this.title,
+    required this.fileNamePrefix,
+  });
 
   @override
   State<_PrintDialog> createState() => _PrintDialogState();
@@ -127,7 +185,12 @@ class _PrintDialogState extends State<_PrintDialog>
     try {
       final list = await Printing.listPrinters();
       final availablePrinters = defaultTargetPlatform == TargetPlatform.windows
-          ? list.where((printer) => !_isVirtualPdfPrinter(printer)).toList()
+          ? () {
+              final physicalPrinters = list
+                  .where((printer) => !_isVirtualPdfPrinter(printer))
+                  .toList();
+              return physicalPrinters.isNotEmpty ? physicalPrinters : list;
+            }()
           : list;
       if (mounted) {
         final defaultPrinter = availablePrinters.where(
@@ -155,14 +218,24 @@ class _PrintDialogState extends State<_PrintDialog>
     setState(() => _printing = true);
     try {
       if (_useSystemPrintDialog) {
-        await _doSavePdf();
+        await Printing.layoutPdf(
+          name: '${widget.fileNamePrefix}_${widget.documentId}',
+          onLayout: (_) async => widget.pdfBytes,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        Navigator.of(context).pop();
+        _showSuccessSnackBar('ເປີດໜ້າຕ່າງພິມແລ້ວ');
         return;
       }
 
       await Printing.directPrintPdf(
         printer: _selectedPrinter!,
         onLayout: (_) async => widget.pdfBytes,
-        name: 'register_${widget.registrationId}',
+        name: '${widget.fileNamePrefix}_${widget.documentId}',
       );
 
       if (!mounted) {
@@ -170,9 +243,7 @@ class _PrintDialogState extends State<_PrintDialog>
       }
 
       Navigator.of(context).pop();
-      _showSuccessSnackBar(
-        _useSystemPrintDialog ? 'ເປີດໜ້າຕ່າງພິມແລ້ວ' : 'ພິມສຳເລັດ!',
-      );
+      _showSuccessSnackBar('ພິມສຳເລັດ!');
     } catch (e) {
       debugPrint('Print error: $e');
       if (mounted) {
@@ -185,8 +256,7 @@ class _PrintDialogState extends State<_PrintDialog>
   Future<void> _doSavePdf() async {
     setState(() => _printing = true);
     try {
-      final fileName =
-          'register_${widget.registrationId}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = '${widget.fileNamePrefix}_${widget.documentId}.pdf';
 
       if (kIsWeb) {
         await XFile.fromData(
@@ -209,11 +279,13 @@ class _PrintDialogState extends State<_PrintDialog>
           return;
         }
 
+        final savePath = _ensurePdfExtension(location.path);
+
         await XFile.fromData(
           widget.pdfBytes,
           mimeType: 'application/pdf',
           name: fileName,
-        ).saveTo(location.path);
+        ).saveTo(savePath);
       }
 
       if (mounted) {
@@ -250,23 +322,17 @@ class _PrintDialogState extends State<_PrintDialog>
             vertical: 24,
           ),
           child: Container(
-            width: 860,
+            width: 980,
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.88,
+              maxWidth: MediaQuery.of(context).size.width * 0.94,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 48,
-                  offset: const Offset(0, 16),
-                ),
-              ],
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: Column(
                 children: [
                   _buildHeader(),
@@ -283,47 +349,75 @@ class _PrintDialogState extends State<_PrintDialog>
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-      decoration: const BoxDecoration(color: AppColors.primary),
+      padding: const EdgeInsets.fromLTRB(28, 22, 22, 22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+        ),
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: const Icon(
               Icons.print_rounded,
               color: Colors.white,
-              size: 22,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 14),
-          const Column(
+          const SizedBox(width: 16),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'ພິມໃບລົງທະບຽນ',
-                style: TextStyle(
+                widget.title,
+                style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   height: 1.2,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
-                'ເລືອກເຄື່ອງປິ້ນເຕີ',
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _HeaderPill(
+                    icon: _useSystemPrintDialog
+                        ? (kIsWeb
+                              ? Icons.language_rounded
+                              : Icons.desktop_windows_rounded)
+                        : Icons.print_outlined,
+                    label: _useSystemPrintDialog
+                        ? (kIsWeb ? 'Browser print' : 'Windows print')
+                        : 'Connected printer',
+                  ),
+                  const SizedBox(width: 8),
+                  _HeaderPill(
+                    icon: Icons.description_outlined,
+                    label: widget.documentId,
+                  ),
+                ],
               ),
             ],
           ),
           const Spacer(),
           IconButton(
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              backgroundColor: Colors.white.withValues(alpha: 0.14),
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
             icon: const Icon(Icons.close_rounded, size: 20),
             onPressed: () => Navigator.of(context).pop(),
@@ -341,16 +435,21 @@ class _PrintDialogState extends State<_PrintDialog>
 
         Expanded(
           child: Container(
-            color: const Color(0xFFE2E8F0),
-            padding: const EdgeInsets.all(16),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SfPdfViewer.memory(
-                widget.pdfBytes,
-                canShowPaginationDialog: true,
-                canShowScrollHead: true,
-                pageSpacing: 12,
-              ),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            decoration: const BoxDecoration(
+              color: ui.Color.fromARGB(255, 229, 229, 229),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SfPdfViewer.memory(
+                    widget.pdfBytes,
+                    canShowPaginationDialog: true,
+                    canShowScrollHead: true,
+                    pageSpacing: 16,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -358,14 +457,79 @@ class _PrintDialogState extends State<_PrintDialog>
     );
   }
 
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    String? caption,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12.5,
+              height: 1.55,
+              color: AppColors.foreground,
+            ),
+          ),
+          if (caption != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              caption,
+              style: const TextStyle(
+                fontSize: 11.5,
+                height: 1.5,
+                color: AppColors.mutedForeground,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPreviewSidePanel() {
     if (_useSystemPrintDialog) {
       final isWeb = kIsWeb;
       return Container(
-        width: 260,
-        padding: const EdgeInsets.all(20),
+        width: 290,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFF8FBFF),
           border: Border(
             right: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
           ),
@@ -373,68 +537,17 @@ class _PrintDialogState extends State<_PrintDialog>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  isWeb
-                      ? Icons.language_rounded
-                      : Icons.desktop_windows_rounded,
-                  size: 16,
-                  color: AppColors.mutedForeground,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isWeb ? 'Web Printing' : 'Windows Printing',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.print_outlined,
-                    color: AppColors.primary,
-                    size: 26,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    isWeb
-                        ? 'ໃນ Web ລະບົບຈະເປີດໜ້າຕ່າງພິມຂອງ browser ໂດຍກົງ'
-                        : 'ໃນ Windows ລະບົບຈະເປີດ system print dialog ເພື່ອຫຼີກບັນຫາ crash ຈາກ direct print',
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.5,
-                      color: AppColors.foreground,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    isWeb
-                        ? 'ການບັນທຶກ PDF ຈະເລີ່ມ download ຫຼືໃຫ້ເລືອກບ່ອນບັນທຶກຕາມ browser ທີ່ໃຊ້'
-                        : 'ເຄື່ອງປິ້ນ ແລະ ຄ່າການພິມຈະເລືອກໃນໜ້າຕ່າງພິມຂອງ Windows',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.5,
-                      color: AppColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
+            _buildInfoCard(
+              icon: isWeb
+                  ? Icons.language_rounded
+                  : Icons.desktop_windows_rounded,
+              title: isWeb ? 'Web Printing' : 'Windows Printing',
+              description: isWeb
+                  ? 'ໃນ Web ລະບົບຈະເປີດໜ້າຕ່າງພິມຂອງ browser ໂດຍກົງ ເພື່ອເລືອກ printer ຫຼື ບັນທຶກ PDF.'
+                  : 'ໃນ Windows ລະບົບຈະເປີດ system print dialog ເພື່ອຫຼີກບັນຫາ crash ຈາກ direct print ແລະ ໃຫ້ເລືອກ printer ໄດ້ປອດໄພກວ່າ.',
+              caption: isWeb
+                  ? 'Browser ຈະຈັດການ save/download ແລະ printer options ໃຫ້.'
+                  : 'ເລືອກ printer ແລະ ຄ່າການພິມໃນໜ້າຕ່າງຂອງ Windows.',
             ),
           ],
         ),
@@ -442,104 +555,57 @@ class _PrintDialogState extends State<_PrintDialog>
     }
 
     return Container(
-      width: 260,
+      width: 290,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFF8FBFF),
         border: Border(
           right: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.devices_rounded,
-                  size: 16,
-                  color: AppColors.mutedForeground,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'ເຄື່ອງປິ່ນເຕີທີ່ມີ',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.mutedForeground,
+      child: Expanded(
+        child: _loadingPrinters
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: _buildInfoCard(
+                    icon: Icons.sync_rounded,
+                    title: 'ກຳລັງໂຫຼດ printer',
+                    description:
+                        'ລະບົບກຳລັງກວດຄົ້ນລາຍຊື່ເຄື່ອງປິ້ນເຕີທີ່ເຄື່ອງກຳລັງເຊື່ອມຕໍ່ຢູ່.',
+                    caption: 'ກະລຸນາລໍຖ້າສັກຄູ່.',
                   ),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _loadingPrinters
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'ກຳລັງໂຫຼດ...',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : _printers.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.print_disabled_rounded,
-                            size: 40,
-                            color: AppColors.mutedForeground.withValues(
-                              alpha: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'ບໍ່ພົບເຄື່ອງປິ່ນເຕີ\nກະລຸນາເຊື່ອມຕໍ່ກ່ອນ',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    itemCount: _printers.length,
-                    itemBuilder: (_, i) {
-                      final printer = _printers[i];
-                      final selected = _selectedPrinter?.name == printer.name;
-                      return _PrinterTile(
-                        printer: printer,
-                        selected: selected,
-                        onTap: () => setState(() => _selectedPrinter = printer),
-                      );
-                    },
+              )
+            : _printers.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: _buildInfoCard(
+                    icon: Icons.print_disabled_rounded,
+                    title: 'ບໍ່ພົບເຄື່ອງປິ້ນເຕີ',
+                    description:
+                        'ກະລຸນາກວດສອບການເຊື່ອມຕໍ່ printer ຫຼື ໃຊ້ປຸ່ມບັນທຶກ PDF ແທນກໍໄດ້.',
+                    caption:
+                        'ຖ້າມີ printer ຫຼາຍຕົວ ຈະສາມາດເລືອກໄດ້ຈາກລາຍການນີ້.',
                   ),
-          ),
-        ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                itemCount: _printers.length,
+                itemBuilder: (_, i) {
+                  final printer = _printers[i];
+                  final selected = _selectedPrinter?.name == printer.name;
+                  return _PrinterTile(
+                    printer: printer,
+                    selected: selected,
+                    onTap: () => setState(() => _selectedPrinter = printer),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -548,75 +614,22 @@ class _PrintDialogState extends State<_PrintDialog>
     final canPrint = !_printing;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white.withValues(alpha: 0.96),
         border: Border(
           top: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
         ),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Row(
-            children: [
-              if (_useSystemPrintDialog) ...[
-                Icon(
-                  kIsWeb ? Icons.public_rounded : Icons.print_rounded,
-                  size: 16,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    kIsWeb
-                        ? 'Web ຈະໃຊ້ໜ້າຕ່າງພິມຂອງ browser'
-                        : 'ລະບົບຈະເປີດໜ້າຕ່າງພິມ',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.mutedForeground,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ] else if (_selectedPrinter != null) ...[
-                Icon(
-                  Icons.check_circle_rounded,
-                  size: 16,
-                  color: AppColors.success,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _selectedPrinter!.name,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.mutedForeground,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ] else
-                Expanded(
-                  child: Text(
-                    'ຖ້າບໍ່ມີ ຫຼື ຍັງບໍ່ໄດ້ເລືອກເຄື່ອງປິ່ນເຕີ, ລະບົບຈະບັນທຶກ PDF ແທນ',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.mutedForeground,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               AppButton(
                 onPressed: () => Navigator.of(context).pop(),
                 label: 'ຍົກເລີກ',
-                icon: Icons.close_rounded,
                 variant: AppButtonVariant.danger,
               ),
               const SizedBox(width: 12),
@@ -642,6 +655,40 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 }
 
+class _HeaderPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeaderPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PrinterTile extends StatelessWidget {
   final Printer printer;
   final bool selected;
@@ -657,36 +704,45 @@ class _PrinterTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
-      margin: const EdgeInsets.symmetric(vertical: 3),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: selected
             ? AppColors.primary.withValues(alpha: 0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+            : Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: selected
               ? AppColors.primary.withValues(alpha: 0.4)
-              : Colors.transparent,
+              : AppColors.border,
           width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(
+              0xFF0F172A,
+            ).withValues(alpha: selected ? 0.06 : 0.03),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(7),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: selected
                         ? AppColors.primary.withValues(alpha: 0.12)
                         : AppColors.muted.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     printer.isDefault
@@ -706,7 +762,7 @@ class _PrinterTile extends StatelessWidget {
                       Text(
                         printer.name,
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 13.5,
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.w500,
@@ -741,12 +797,16 @@ class _PrinterTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (selected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 18,
-                    color: AppColors.primary,
-                  ),
+                const SizedBox(width: 8),
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  size: 18,
+                  color: selected
+                      ? AppColors.primary
+                      : AppColors.mutedForeground.withValues(alpha: 0.5),
+                ),
               ],
             ),
           ),
@@ -761,16 +821,49 @@ Future<Uint8List?> _buildPdf({
   required String registrationDate,
   required String studentName,
   required List<FeeModel> selectedFees,
+  required int tuitionFee,
+  required String? dormitoryLabel,
+  required int dormitoryFee,
   required int totalFee,
   required int discountAmount,
   required int netFee,
 }) async {
   try {
+    if (_shouldUseServerReceiptRenderer()) {
+      try {
+        return await _registrationService.createRegistrationReceiptPdf(
+          registrationId: registrationId,
+          registrationDate: _normalizeReceiptDateForApi(registrationDate),
+          studentName: studentName,
+          selectedFees: selectedFees
+              .map(
+                (fee) => {
+                  'subject_name': fee.subjectName,
+                  'level_name': fee.levelName,
+                  'fee': fee.fee.toInt(),
+                },
+              )
+              .toList(growable: false),
+          tuitionFee: tuitionFee,
+          dormitoryLabel: dormitoryLabel,
+          dormitoryFee: dormitoryFee,
+          totalFee: totalFee,
+          discountAmount: discountAmount,
+          netFee: netFee,
+        );
+      } catch (e) {
+        debugPrint('Falling back to local receipt renderer: $e');
+      }
+    }
+
     final receiptImageBytes = await _buildReceiptImage(
       registrationId: registrationId,
       registrationDate: registrationDate,
       studentName: studentName,
       selectedFees: selectedFees,
+      tuitionFee: tuitionFee,
+      dormitoryLabel: dormitoryLabel,
+      dormitoryFee: dormitoryFee,
       totalFee: totalFee,
       discountAmount: discountAmount,
       netFee: netFee,
@@ -798,11 +891,42 @@ Future<Uint8List?> _buildPdf({
   }
 }
 
+String _normalizeReceiptDateForApi(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return trimmed;
+  }
+
+  final direct = DateTime.tryParse(trimmed);
+  if (direct != null) {
+    return direct.toIso8601String();
+  }
+
+  final knownFormats = [
+    DateFormat('dd/MM/yyyy'),
+    DateFormat('dd-MM-yyyy HH:mm:ss'),
+    DateFormat('dd-MM-yyyy'),
+  ];
+
+  for (final format in knownFormats) {
+    try {
+      return format.parseStrict(trimmed).toIso8601String();
+    } catch (_) {
+      // Try the next supported display format.
+    }
+  }
+
+  return trimmed;
+}
+
 Future<Uint8List> _buildReceiptImage({
   required String registrationId,
   required String registrationDate,
   required String studentName,
   required List<FeeModel> selectedFees,
+  required int tuitionFee,
+  required String? dormitoryLabel,
+  required int dormitoryFee,
   required int totalFee,
   required int discountAmount,
   required int netFee,
@@ -1042,25 +1166,33 @@ Future<Uint8List> _buildReceiptImage({
   );
 
   var infoY = headerRuleY + 182;
-  final infoLabelWidth = 228.0;
-  final infoColumnGap = 8.0;
-  final infoValueX = horizontalPadding + infoLabelWidth + infoColumnGap;
-  final infoValueWidth = pageWidth - infoValueX - horizontalPadding;
-
   final registrationLabelPainter = layoutText(
     'ລະຫັດໃບລົງທະບຽນ:',
     infoLabelStyle,
-    maxWidth: infoLabelWidth,
     maxLines: 1,
   );
+  final studentLabelPainter = layoutText(
+    'ຊື່ ແລະ ນາມສະກຸນ:',
+    infoLabelStyle,
+    maxLines: 1,
+  );
+  const infoColumnGap = 6.0;
+  final registrationValueX =
+      horizontalPadding + registrationLabelPainter.width + infoColumnGap;
+  final registrationValueWidth =
+      pageWidth - registrationValueX - horizontalPadding;
+  final studentValueX =
+      horizontalPadding + studentLabelPainter.width + infoColumnGap;
+  final studentValueWidth = pageWidth - studentValueX - horizontalPadding;
+
   final registrationValuePainter = layoutText(
     registrationId,
     infoValueStyle,
-    maxWidth: infoValueWidth,
+    maxWidth: registrationValueWidth,
     maxLines: 1,
   );
   registrationLabelPainter.paint(canvas, Offset(horizontalPadding, infoY));
-  registrationValuePainter.paint(canvas, Offset(infoValueX, infoY));
+  registrationValuePainter.paint(canvas, Offset(registrationValueX, infoY));
 
   infoY +=
       math.max(
@@ -1069,20 +1201,14 @@ Future<Uint8List> _buildReceiptImage({
       ) +
       14;
 
-  final studentLabelPainter = layoutText(
-    'ຊື່ ແລະ ນາມສະກຸນ:',
-    infoLabelStyle,
-    maxWidth: infoLabelWidth,
-    maxLines: 1,
-  );
   final studentValuePainter = layoutText(
     studentName,
     infoValueStyle,
-    maxWidth: infoValueWidth,
+    maxWidth: studentValueWidth,
     maxLines: 2,
   );
   studentLabelPainter.paint(canvas, Offset(horizontalPadding, infoY));
-  studentValuePainter.paint(canvas, Offset(infoValueX, infoY));
+  studentValuePainter.paint(canvas, Offset(studentValueX, infoY));
 
   var tableY =
       infoY +
@@ -1179,11 +1305,45 @@ Future<Uint8List> _buildReceiptImage({
     tableY += 18;
   }
 
-  var summaryY = tableY + 56;
+  var summaryY = tableY + 28;
   final summaryRight = tableRight;
   final summaryValueWidth = 220.0;
   final summaryGap = 26.0;
   final summaryLabelRight = summaryRight - summaryValueWidth - summaryGap;
+
+  paintText(
+    'ຄ່າຮຽນລວມ:',
+    summaryLabelStyle,
+    Offset(summaryLabelRight, summaryY),
+    textAlign: TextAlign.right,
+    maxWidth: 240,
+  );
+  paintText(
+    '${fmt(tuitionFee)} ກີບ',
+    summaryValueStyle,
+    Offset(summaryRight, summaryY),
+    textAlign: TextAlign.right,
+    maxWidth: summaryValueWidth,
+  );
+
+  summaryY += 30;
+  if (dormitoryFee > 0) {
+    paintText(
+      '${dormitoryLabel ?? 'ຄ່າອື່ນໆ'}:',
+      summaryLabelStyle,
+      Offset(summaryLabelRight, summaryY),
+      textAlign: TextAlign.right,
+      maxWidth: 240,
+    );
+    paintText(
+      '${fmt(dormitoryFee)} ກີບ',
+      summaryValueStyle,
+      Offset(summaryRight, summaryY),
+      textAlign: TextAlign.right,
+      maxWidth: summaryValueWidth,
+    );
+    summaryY += 30;
+  }
 
   paintText(
     'ລວມທັງໝົດ:',
@@ -1200,7 +1360,7 @@ Future<Uint8List> _buildReceiptImage({
     maxWidth: summaryValueWidth,
   );
 
-  summaryY += 42;
+  summaryY += 30;
   if (discountAmount > 0) {
     paintText(
       'ສ່ວນຫຼຸດ:',
@@ -1216,7 +1376,7 @@ Future<Uint8List> _buildReceiptImage({
       textAlign: TextAlign.right,
       maxWidth: summaryValueWidth,
     );
-    summaryY += 40;
+    summaryY += 38;
   } else {
     summaryY += 8;
   }
@@ -1229,7 +1389,7 @@ Future<Uint8List> _buildReceiptImage({
     gapWidth: 5,
   );
 
-  summaryY += 26;
+  summaryY += 14;
   paintText(
     'ຕ້ອງຈ່າຍ:',
     amountDueLabelStyle,
@@ -1245,7 +1405,7 @@ Future<Uint8List> _buildReceiptImage({
     maxWidth: summaryValueWidth,
   );
 
-  final footerLineY = math.min(summaryY + 108, pageHeight - 170);
+  final footerLineY = math.min(summaryY + 88, pageHeight - 170);
   drawDashedLine(
     start: Offset(horizontalPadding, footerLineY),
     width: pageWidth - (horizontalPadding * 2),

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../core/utils/http_helper.dart';
 import '../models/registration_model.dart';
 
@@ -46,5 +48,43 @@ class RegistrationService {
   Future<void> deleteRegistration(String registrationId) async {
     final response = await _http.delete('/registrations/$registrationId');
     _http.handleJson(response);
+  }
+
+  Future<Uint8List> createRegistrationReceiptPdf({
+    required String registrationId,
+    required String registrationDate,
+    required String studentName,
+    required List<Map<String, Object?>> selectedFees,
+    required int tuitionFee,
+    required String? dormitoryLabel,
+    required int dormitoryFee,
+    required int totalFee,
+    required int discountAmount,
+    required int netFee,
+  }) async {
+    final response = await _http.post(
+      '/registrations/receipt-pdf',
+      body: {
+        'registration_id': registrationId,
+        'registration_date': registrationDate,
+        'student_name': studentName,
+        'selected_fees': selectedFees,
+        'tuition_fee': tuitionFee,
+        'dormitory_label': dormitoryLabel,
+        'dormitory_fee': dormitoryFee,
+        'total_fee': totalFee,
+        'discount_amount': discountAmount,
+        'net_fee': netFee,
+      },
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
   }
 }

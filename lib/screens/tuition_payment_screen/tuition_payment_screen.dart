@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/widgets/app_text_field.dart';
+
 import '../../core/constants/app_colors.dart';
-import '../../core/utils/responsive_utils.dart';
 import '../../core/utils/format_utils.dart';
+import '../../core/utils/responsive_utils.dart';
+import '../../core/utils/tuition_payment_receipt_printer.dart';
 import '../../models/tuition_payment_model.dart';
 import '../../providers/registration_provider.dart';
 import '../../providers/tuition_payment_provider.dart';
-import '../../widgets/app_data_table.dart';
 import '../../screens/registration_screen/widgets/status_badge.dart';
+import '../../widgets/app_data_table.dart';
+import '../../widgets/print_preparation_overlay.dart';
 import 'widgets/modern_reg_table.dart';
 import 'widgets/tuition_payment_dialog.dart';
 
@@ -24,6 +27,7 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
   String _searchText = '';
   final _searchController = TextEditingController();
   String? _selectedRegId;
+  bool _isPreparingPaymentPrint = false;
 
   @override
   void initState() {
@@ -42,32 +46,91 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
 
   String _formatKip(double value) => FormatUtils.formatKip(value.toInt());
 
-  @override
-  Widget build(BuildContext context) {
-    final isMobile = context.isMobile;
-    final regState = ref.watch(registrationProvider);
-
-    final leftWidth = context.responsiveValue(
-      mobile: double.infinity,
-      tablet: 360.0,
-      desktop: 550.0,
-      wideDesktop: 720.0,
-    );
-
-    if (isMobile) {
-      return Column(
-        children: [
-          SizedBox(height: 300, child: _buildStudentList(regState)),
-          const Divider(height: 1, thickness: 1),
-          Expanded(child: _buildAllPaymentHistory()),
-        ],
-      );
+  Future<void> _handlePaymentPrint(TuitionPaymentModel payment) async {
+    if (_isPreparingPaymentPrint) {
+      return;
     }
 
-    return Row(
+    setState(() => _isPreparingPaymentPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showTuitionPaymentPrintDialog(
+        context: context,
+        paymentId: payment.tuitionPaymentId,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPaymentPrint) {
+            setState(() => _isPreparingPaymentPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPaymentPrint) {
+        setState(() => _isPreparingPaymentPrint = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final regState = ref.watch(registrationProvider);
+
+    return Stack(
       children: [
-        SizedBox(width: leftWidth, child: _buildStudentList(regState)),
-        Expanded(child: _buildAllPaymentHistory()),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final availableWidth = constraints.maxWidth;
+            final shouldStackLayout = availableWidth < Breakpoints.desktop;
+            final stackedTopHeight = availableWidth < Breakpoints.tablet
+                ? 300.0
+                : 360.0;
+            final leftWidth = availableWidth >= Breakpoints.wideDesktop
+                ? 720.0
+                : availableWidth >= Breakpoints.desktop
+                ? 550.0
+                : availableWidth >= Breakpoints.tablet
+                ? 360.0
+                : double.infinity;
+
+            if (shouldStackLayout) {
+              return Column(
+                children: [
+                  SizedBox(
+                    height: stackedTopHeight,
+                    child: _buildStudentList(regState),
+                  ),
+                  Expanded(
+                    child: _buildAllPaymentHistory(
+                      onPrint: _handlePaymentPrint,
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                SizedBox(width: leftWidth, child: _buildStudentList(regState)),
+                Expanded(
+                  child: _buildAllPaymentHistory(onPrint: _handlePaymentPrint),
+                ),
+              ],
+            );
+          },
+        ),
+        if (_isPreparingPaymentPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.receipt_long_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງດຶງຂໍ້ມູນການຈ່າຍຄ່າຮຽນ ແລະ ສ້າງ preview ໃຫ້ພ້ອມສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
       ],
     );
   }
@@ -83,7 +146,7 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
           }).toList();
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -96,7 +159,7 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
             label: '',
             hint: 'ຄົ້ນຫາການລົງທະບຽນ...',
             prefixIcon: const Icon(Icons.search, size: 18),
-            onChanged: (v) => setState(() => _searchText = v),
+            onChanged: (value) => setState(() => _searchText = value),
             fontSize: 16,
             suffixIcon: _searchText.isNotEmpty
                 ? MouseRegion(
@@ -141,15 +204,21 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
     );
   }
 
-  Widget _buildAllPaymentHistory() {
-    return _AllPaymentHistorySection(formatKip: _formatKip);
+  Widget _buildAllPaymentHistory({
+    required Future<void> Function(TuitionPaymentModel payment) onPrint,
+  }) {
+    return _AllPaymentHistorySection(formatKip: _formatKip, onPrint: onPrint);
   }
 }
 
 class _AllPaymentHistorySection extends ConsumerWidget {
   final String Function(double) formatKip;
+  final Future<void> Function(TuitionPaymentModel payment) onPrint;
 
-  const _AllPaymentHistorySection({required this.formatKip});
+  const _AllPaymentHistorySection({
+    required this.formatKip,
+    required this.onPrint,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -161,7 +230,7 @@ class _AllPaymentHistorySection extends ConsumerWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(right: 16, bottom: 16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -184,7 +253,7 @@ class _AllPaymentHistorySection extends ConsumerWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
+                    color: AppColors.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -200,7 +269,6 @@ class _AllPaymentHistorySection extends ConsumerWidget {
           ),
           Expanded(
             child: AppDataTable<TuitionPaymentModel>(
-              title: 'ປະຫວັດການຈ່າຍຄ່າຮຽນທັງໝົດ',
               data: allPayments,
               columns: [
                 DataColumnDef<TuitionPaymentModel>(
@@ -253,6 +321,8 @@ class _AllPaymentHistorySection extends ConsumerWidget {
                 ),
               ],
               onDelete: (row) => _showDeleteConfirmation(context, ref, row),
+              onPrint: onPrint,
+              isLoading: isLoading,
               showActions: true,
             ),
           ),
@@ -269,12 +339,14 @@ class _AllPaymentHistorySection extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('????????????'),
-        content: Text('????????????????????? ${row.tuitionPaymentId}?'),
+        title: const Text('ຢືນຢັນການລຶບ'),
+        content: Text(
+          'ທ່ານຕ້ອງການລຶບການຈ່າຍເງິນ ${row.tuitionPaymentId} ຫຼືບໍ?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('???????'),
+            child: const Text('ຍົກເລີກ'),
           ),
           TextButton(
             onPressed: () async {
@@ -287,14 +359,14 @@ class _AllPaymentHistorySection extends ConsumerWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('????????????????????'),
+                    content: Text('ລຶບການຈ່າຍເງິນສຳເລັດ'),
                     backgroundColor: AppColors.success,
                   ),
                 );
               }
             },
             child: const Text(
-              '???',
+              'ລຶບ',
               style: TextStyle(color: AppColors.destructive),
             ),
           ),

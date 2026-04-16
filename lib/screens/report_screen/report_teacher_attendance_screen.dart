@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/utils/format_utils.dart';
+import 'package:palee_elite_training_center/core/utils/teacher_attendance_report_printer.dart';
 import 'package:palee_elite_training_center/models/teaching_log_model.dart';
 import 'package:palee_elite_training_center/models/teacher_model.dart';
 import 'package:palee_elite_training_center/providers/academic_year_provider.dart';
@@ -12,9 +13,9 @@ import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
 import 'package:palee_elite_training_center/widgets/app_toast.dart';
+import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
 import 'package:palee_elite_training_center/widgets/summary_card.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:cross_file/cross_file.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 
@@ -34,6 +35,7 @@ class _ReportTeacherAttendanceScreenState
   List<TeachingLogModel> _logs = [];
   List<TeacherModel> _teachers = [];
   bool _isLoading = true;
+  bool _isPreparingPdfPrint = false;
   String? _errorMessage;
 
   String _statusFilter = 'ທັງໝົດ';
@@ -106,10 +108,10 @@ class _ReportTeacherAttendanceScreenState
       final absentCount = logs.where((l) => l.status == 'ຂາດສອນ').length;
       final totalHours = logs
           .where((l) => l.status == 'ຂຶ້ນສອນ')
-          .fold(0.0, (sum, l) => sum + (l.hourly ?? 0));
+          .fold(0.0, (sum, l) => sum + l.hourly);
       final totalAmount = logs
           .where((l) => l.status == 'ຂຶ້ນສອນ')
-          .fold(0.0, (sum, l) => sum + (l.totalAmount ?? 0));
+          .fold(0.0, (sum, l) => sum + l.totalAmount);
 
       setState(() {
         _teachers = teachersRes.data;
@@ -140,6 +142,7 @@ class _ReportTeacherAttendanceScreenState
   }
 
   Future<void> _exportToCsv() async {
+    final academicId = _getCurrentAcademicId();
     final monthStr = _selectedMonth != null
         ? '${_selectedMonth!.year}-${_selectedMonth!.month.toString().padLeft(2, '0')}'
         : null;
@@ -147,6 +150,7 @@ class _ReportTeacherAttendanceScreenState
     final exportData = await ref
         .read(reportProvider.notifier)
         .exportTeacherAttendanceReport(
+          academicId: academicId,
           month: monthStr,
           status: _statusFilter != 'ທັງໝົດ' ? _statusFilter : null,
           teacherId: _selectedTeacherId,
@@ -195,87 +199,137 @@ class _ReportTeacherAttendanceScreenState
     return _logs;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final academicYearState = ref.watch(academicYearProvider);
-
-    String currentAcademicYear = '';
+  String? _getCurrentAcademicId() {
+    final academicYearState = ref.read(academicYearProvider);
     if (academicYearState.selectedAcademicYear != null) {
-      currentAcademicYear =
-          academicYearState.selectedAcademicYear!.academicYear;
-    } else {
-      final activeYears = academicYearState.academicYears
-          .where((ay) => ay.academicStatus == 'ດໍາເນີນການ')
-          .toList();
-      if (activeYears.isNotEmpty) {
-        currentAcademicYear = activeYears.first.academicYear;
-      } else if (academicYearState.academicYears.isNotEmpty) {
-        currentAcademicYear =
-            academicYearState.academicYears.first.academicYear;
-      }
+      return academicYearState.selectedAcademicYear!.academicId;
     }
 
+    final activeYears = academicYearState.academicYears
+        .where((ay) => ay.academicStatus == 'ດໍາເນີນການ')
+        .toList();
+    if (activeYears.isNotEmpty) {
+      return activeYears.first.academicId;
+    }
+    if (academicYearState.academicYears.isNotEmpty) {
+      return academicYearState.academicYears.first.academicId;
+    }
+    return null;
+  }
+
+  Future<void> _handlePdfPrint() async {
+    if (_isPreparingPdfPrint || _filteredLogs.isEmpty) {
+      return;
+    }
+
+    final monthStr = _selectedMonth != null
+        ? '${_selectedMonth!.year}-${_selectedMonth!.month.toString().padLeft(2, '0')}'
+        : null;
+
+    setState(() => _isPreparingPdfPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showTeacherAttendanceReportPrintDialog(
+        context: context,
+        academicId: _getCurrentAcademicId(),
+        month: monthStr,
+        status: _statusFilter != 'ທັງໝົດ' ? _statusFilter : null,
+        teacherId: _selectedTeacherId,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPdfPrint) {
+            setState(() => _isPreparingPdfPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPdfPrint) {
+        setState(() => _isPreparingPdfPrint = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final taught = (_summary['taught_count'] as num).toDouble();
     final absent = (_summary['absent_count'] as num).toDouble();
     final totalHours = (_summary['total_hours'] as num).toDouble();
     final totalAmount = (_summary['total_amount'] as num).toDouble();
+    final hasAttendanceData = _filteredLogs.isNotEmpty;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SummaryCard(
-              label: 'ຂຶ້ນສອນ',
-              amount: taught,
-              icon: Icons.check_circle_outline_rounded,
-              color: AppColors.success,
-              bgColor: AppColors.success.withOpacity(0.12),
-              formatKip: (v) => '${v.toInt()} ຄັ້ງ',
+            Row(
+              children: [
+                SummaryCard(
+                  label: 'ຂຶ້ນສອນ',
+                  amount: taught,
+                  icon: Icons.check_circle_outline_rounded,
+                  color: AppColors.success,
+                  bgColor: AppColors.success.withValues(alpha: 0.12),
+                  formatKip: (v) => '${v.toInt()} ຄັ້ງ',
+                ),
+                const SizedBox(width: 12),
+                SummaryCard(
+                  label: 'ຂາດສອນ',
+                  amount: absent,
+                  icon: Icons.cancel_outlined,
+                  color: AppColors.destructive,
+                  bgColor: AppColors.destructive.withValues(alpha: 0.12),
+                  formatKip: (v) => '${v.toInt()} ຄັ້ງ',
+                ),
+                const SizedBox(width: 12),
+                SummaryCard(
+                  label: 'ຈຳນວນຊົ່ວໂມງ (ຂຶ້ນສອນ)',
+                  amount: totalHours,
+                  icon: Icons.access_time_rounded,
+                  color: AppColors.info,
+                  bgColor: AppColors.info.withValues(alpha: 0.12),
+                  formatKip: (v) => '${v.toStringAsFixed(0)} ຊ.ມ',
+                ),
+                const SizedBox(width: 12),
+                SummaryCard(
+                  label: 'ຍອດລວມ (ຂຶ້ນສອນ)',
+                  amount: totalAmount,
+                  icon: Icons.attach_money_rounded,
+                  color: AppColors.warning,
+                  bgColor: AppColors.warning.withValues(alpha: 0.12),
+                  formatKip: (v) => _formatKip(v),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            SummaryCard(
-              label: 'ຂາດສອນ',
-              amount: absent,
-              icon: Icons.cancel_outlined,
-              color: AppColors.destructive,
-              bgColor: AppColors.destructive.withOpacity(0.12),
-              formatKip: (v) => '${v.toInt()} ຄັ້ງ',
-            ),
-            const SizedBox(width: 12),
-            SummaryCard(
-              label: 'ຈຳນວນຊົ່ວໂມງ (ຂຶ້ນສອນ)',
-              amount: totalHours,
-              icon: Icons.access_time_rounded,
-              color: AppColors.info,
-              bgColor: AppColors.info.withOpacity(0.12),
-              formatKip: (v) => '${v.toStringAsFixed(0)} ຊ.ມ',
-            ),
-            const SizedBox(width: 12),
-            SummaryCard(
-              label: 'ຍອດລວມ (ຂຶ້ນສອນ)',
-              amount: totalAmount,
-              icon: Icons.attach_money_rounded,
-              color: AppColors.warning,
-              bgColor: AppColors.warning.withOpacity(0.12),
-              formatKip: (v) => '${_formatKip(v)}',
-            ),
+            const SizedBox(height: 16),
+            _buildFilterSection(hasAttendanceData),
+            Expanded(child: _buildDataTable()),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildFilterSection(),
-        Expanded(child: _buildDataTable()),
+        if (_isPreparingPdfPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.print_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານການເຂົ້າສອນອາຈານ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
       ],
     );
   }
 
-  Widget _buildFilterSection() {
+  Widget _buildFilterSection(bool hasAttendanceData) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [
@@ -329,7 +383,7 @@ class _ReportTeacherAttendanceScreenState
               Container(
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
-                  color: AppColors.muted.withOpacity(0.15),
+                  color: AppColors.muted.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -341,13 +395,46 @@ class _ReportTeacherAttendanceScreenState
                 ),
               ),
               const Spacer(),
-              AppButton(
-                label: 'Export CSV',
-                icon: Icons.download_rounded,
-                variant: AppButtonVariant.primary,
-                size: AppButtonSize.medium,
-                onPressed: _exportToCsv,
-              ),
+              if (hasAttendanceData) ...[
+                AppButton(
+                  label: 'ບັນທຶກ Excel',
+                  icon: Icons.download_rounded,
+                  variant: AppButtonVariant.success,
+                  size: AppButtonSize.medium,
+                  onPressed: _isPreparingPdfPrint || _isLoading
+                      ? null
+                      : _exportToCsv,
+                ),
+                const SizedBox(width: 12),
+                AppButton(
+                  label: _isPreparingPdfPrint ? 'ກຳລັງ ພິມ...' : 'ພິມ PDF',
+                  icon: Icons.print,
+                  variant: AppButtonVariant.primary,
+                  size: AppButtonSize.medium,
+                  onPressed: _isPreparingPdfPrint || _isLoading
+                      ? null
+                      : _handlePdfPrint,
+                ),
+              ] else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Text(
+                    'ບໍ່ມີຂໍ້ມູນ ຈຶ່ງບໍ່ສາມາດ Export ຫຼື ພິມໄດ້',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.mutedForeground,
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -408,10 +495,7 @@ class _ReportTeacherAttendanceScreenState
     for (int month = 1; month <= 12; month++) {
       final date = DateTime(now.year, month, 1);
       monthItems.add(
-        DropdownMenuItem(
-          value: date,
-          child: Text(monthNames[month - 1]),
-        ),
+        DropdownMenuItem(value: date, child: Text(monthNames[month - 1])),
       );
     }
 
@@ -524,8 +608,8 @@ class _ReportTeacherAttendanceScreenState
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isPresent
-                  ? AppColors.success.withOpacity(0.1)
-                  : AppColors.destructive.withOpacity(0.1),
+                  ? AppColors.success.withValues(alpha: 0.1)
+                  : AppColors.destructive.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(

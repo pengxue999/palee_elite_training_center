@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:palee_elite_training_center/widgets/app_text_field.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _userNameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _obscurePassword = true;
 
   late AnimationController _entryCtrl;
@@ -47,6 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     _entryCtrl.dispose();
     _userNameController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -182,54 +185,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                     _ErrorBanner(message: authState.error!),
                                     const SizedBox(height: 20),
                                   ],
-
-                                  _FieldLabel(label: 'ຊື່ຜູ້ໃຊ້'),
-                                  const SizedBox(height: 7),
-                                  _GlassTextField(
-                                    controller: _userNameController,
+                                  AppTextField(
+                                    label: 'ຊື່ຜູ້ໃຊ້',
                                     hint: 'ປ້ອນຊື່ຜູ້ໃຊ້',
-                                    prefixIcon: Icons.person_outline_rounded,
+                                    controller: _userNameController,
                                     textInputAction: TextInputAction.next,
-                                    enabled: !authState.isLoading,
-                                    validator: (v) =>
-                                        (v == null || v.trim().isEmpty)
-                                        ? 'ກາລຸນາປ້ອນຊື່ຜູ້ໃຊ້'
-                                        : null,
+                                    onFieldSubmitted: (_) {
+                                      _passwordFocusNode.requestFocus();
+                                    },
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline_rounded,
+                                      size: 18,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                    validator: (v) => v?.isNotEmpty == true
+                                        ? null
+                                        : 'ກະລຸນາປ້ອນຊື່ຜູ້ໃຊ້',
+                                    onChanged: (_) => setState(() {}),
                                   ),
                                   const SizedBox(height: 18),
-
-                                  _FieldLabel(label: 'ລະຫັດຜ່ານ'),
-                                  const SizedBox(height: 7),
-                                  _GlassTextField(
-                                    controller: _passwordController,
+                                  AppTextField(
+                                    label: 'ລະຫັດຜ່ານ',
                                     hint: 'ປ້ອນລະຫັດຜ່ານ',
-                                    prefixIcon: Icons.lock_outline_rounded,
-                                    obscureText: _obscurePassword,
-                                    enabled: !authState.isLoading,
+                                    focusNode: _passwordFocusNode,
                                     textInputAction: TextInputAction.done,
+                                    prefixIcon: const Icon(
+                                      Icons.lock_outline_rounded,
+                                      size: 18,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                    controller: _passwordController,
+                                    validator: (v) => v?.isNotEmpty == true
+                                        ? null
+                                        : 'ກະລຸນາປ້ອນລະຫັດຜ່ານ',
+                                    onChanged: (_) => setState(() {}),
                                     onFieldSubmitted: (_) => _handleLogin(),
+                                    obscureText: _obscurePassword,
                                     suffixIcon: IconButton(
                                       icon: Icon(
                                         _obscurePassword
                                             ? Icons.visibility_off_outlined
                                             : Icons.visibility_outlined,
-                                        color: const Color.fromARGB(
-                                          255,
-                                          50,
-                                          49,
-                                          49,
-                                        ).withOpacity(0.45),
+                                        color: const Color(0xFF6B7280),
                                         size: 18,
                                       ),
-                                      splashRadius: 20,
                                       onPressed: () => setState(
                                         () => _obscurePassword =
                                             !_obscurePassword,
                                       ),
                                     ),
-                                    validator: (v) => (v == null || v.isEmpty)
-                                        ? 'ກາລຸນາປ້ອນລະຫັດຜ່ານ'
-                                        : null,
                                   ),
                                   const SizedBox(height: 28),
 
@@ -250,7 +254,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           Text(
                             '© 2026 Palee Elite Training Center',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontFamily: 'NotoSansLao', fontSize: 12,
+                            style: TextStyle(
+                              fontFamily: 'NotoSansLao',
+                              fontSize: 12,
                               color: Colors.white.withOpacity(0.3),
                               height: 1.6,
                             ),
@@ -345,95 +351,6 @@ class _GlassCard extends StatelessWidget {
         ],
       ),
       child: child,
-    );
-  }
-}
-
-class _GlassTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData prefixIcon;
-  final bool obscureText;
-  final bool enabled;
-  final Widget? suffixIcon;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onFieldSubmitted;
-  final FormFieldValidator<String>? validator;
-
-  const _GlassTextField({
-    required this.controller,
-    required this.hint,
-    required this.prefixIcon,
-    this.obscureText = false,
-    this.enabled = true,
-    this.suffixIcon,
-    this.textInputAction,
-    this.onFieldSubmitted,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      enabled: enabled,
-      textInputAction: textInputAction,
-      onFieldSubmitted: onFieldSubmitted,
-      validator: validator,
-      style: const TextStyle(
-        fontFamily: 'NotoSansLao',
-        fontSize: 14,
-        color: Color(0xFF111827),
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(
-          fontFamily: 'NotoSansLao',
-          color: Color(0xFF9CA3AF),
-          fontSize: 13.5,
-        ),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: Icon(prefixIcon, color: const Color(0xFF9CA3AF), size: 18),
-        ),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.12),
-            width: 1,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Color(0xFFD1D5DB), width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.8),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFF87171), width: 1.2),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFF87171), width: 1.8),
-        ),
-        errorStyle: TextStyle(
-          fontFamily: 'NotoSansLao',
-          fontSize: 12,
-          height: 1.4,
-          color: const Color(0xFFF87171).withOpacity(0.9),
-        ),
-      ),
     );
   }
 }
@@ -590,24 +507,6 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontFamily: 'NotoSansLao',
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    );
-  }
-}
-
 class _ErrorBanner extends StatelessWidget {
   final String message;
   const _ErrorBanner({required this.message});
@@ -671,4 +570,3 @@ class _Orb extends StatelessWidget {
     );
   }
 }
-

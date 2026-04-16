@@ -195,7 +195,11 @@ class HttpHelper {
 
   http.Response _handleResponse(http.Response response) {
     if (kDebugMode) {
-      print('HTTP Response [${response.statusCode}]: ${response.body}');
+      final contentType = response.headers['content-type'] ?? '';
+      final responsePreview = contentType.contains('application/pdf')
+          ? '<binary pdf ${response.bodyBytes.length} bytes>'
+          : response.body;
+      print('HTTP Response [${response.statusCode}]: $responsePreview');
     }
     return response;
   }
@@ -219,7 +223,6 @@ class HttpHelper {
     }
   }
 }
-
 
 class NotFoundException implements Exception {
   final String message;

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import '../../core/utils/finance_report_printer.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/format_utils.dart';
 import '../../models/report_models.dart';
@@ -13,6 +17,7 @@ import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/empty_widget.dart';
+import '../../widgets/print_preparation_overlay.dart';
 
 class ReportFinanceScreen extends ConsumerStatefulWidget {
   const ReportFinanceScreen({super.key});
@@ -25,6 +30,7 @@ class ReportFinanceScreen extends ConsumerStatefulWidget {
 class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
   String _activeTab = 'overview';
   int _selectedYear = DateTime.now().year;
+  bool _isPreparingPdfPrint = false;
 
   List<int> _availableYears = [];
 
@@ -74,78 +80,198 @@ class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
   }
 
   Future<void> _handleExport() async {
+    if (!_canExportExcel) {
+      return;
+    }
+
     final data = await ref
         .read(reportProvider.notifier)
-        .exportFinanceReport(year: _selectedYear);
+        .exportFinanceReport(year: _selectedYear,);
+
     if (data != null && mounted) {
-      AppToast.success(context, 'Export ຂໍ້ມູນສຳເລັດ');
+      final csvData = utf8.encode(data.data);
+      final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...csvData]);
+      final FileSaveLocation? result = await getSaveLocation(
+        suggestedName: data.filename,
+        acceptedTypeGroups: [
+          const XTypeGroup(label: 'CSV Files', extensions: ['csv']),
+        ],
+      );
+
+      if (result != null) {
+        String path = result.path;
+        if (!path.toLowerCase().endsWith('.csv')) {
+          path += '.csv';
+        }
+
+        try {
+          final xFile = XFile.fromData(
+            bytes,
+            name: data.filename,
+            mimeType: 'text/csv',
+          );
+          await xFile.saveTo(path);
+
+          if (mounted) {
+            AppToast.success(context, 'ບັນທຶກສຳເລັດ ຢູ່ທີ: $path');
+          }
+        } catch (e) {
+          if (mounted) {
+            AppToast.error(context, 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ: $e');
+          }
+        }
+      }
     } else if (mounted) {
       final error = ref.read(reportProvider).financeError;
       AppToast.error(context, error ?? 'ບໍ່ສາມາດ Export ຂໍ້ມູນໄດ້');
     }
   }
 
+  Future<void> _handlePdfPrint(FinanceReportData data) async {
+    if (_isPreparingPdfPrint) {
+      return;
+    }
+
+    final hasPrintableData = switch (_activeTab) {
+      'income' => data.incomes.isNotEmpty,
+      'expense' => data.expenses.isNotEmpty,
+      _ => true,
+    };
+
+    if (!hasPrintableData) {
+      return;
+    }
+
+    setState(() => _isPreparingPdfPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showFinanceReportPrintDialog(
+        context: context,
+        academicId: data.filters.academicId,
+        year: _selectedYear,
+        tab: _activeTab,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPdfPrint) {
+            setState(() => _isPreparingPdfPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPdfPrint) {
+        setState(() => _isPreparingPdfPrint = false);
+      }
+    }
+  }
+
+  bool get _canExportExcel => _activeTab == 'income' || _activeTab == 'expense';
+
   @override
   Widget build(BuildContext context) {
     final reportState = ref.watch(reportProvider);
     final financeData = reportState.financeData;
+    final hasPrintableData =
+        financeData != null &&
+        (_activeTab == 'overview' ||
+            (_activeTab == 'income' && financeData.incomes.isNotEmpty) ||
+            (_activeTab == 'expense' && financeData.expenses.isNotEmpty));
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: RefreshIndicator(
-        onRefresh: _loadFinanceReport,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          body: RefreshIndicator(
+            onRefresh: _loadFinanceReport,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTabs(),
-                Spacer(),
-                SizedBox(
-                  width: 120,
-                  child: AppDropdown<int>(
-                    value: _selectedYear,
-                    items: _availableYears.map((year) {
-                      return DropdownMenuItem(
-                        value: year,
-                        child: Text('$year'),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _selectedYear = value);
-                        _loadFinanceReport();
-                      }
-                    },
-                    hint: 'ເລືອກປີ',
-                  ),
+                Row(
+                  children: [
+                    _buildTabs(),
+                    Spacer(),
+                    SizedBox(
+                      width: 120,
+                      child: AppDropdown<int>(
+                        value: _selectedYear,
+                        items: _availableYears.map((year) {
+                          return DropdownMenuItem(
+                            value: year,
+                            child: Text('$year'),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() => _selectedYear = value);
+                            _loadFinanceReport();
+                          }
+                        },
+                        hint: 'ເລືອກປີ',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    AppButton(
+                      label: reportState.isFinanceExporting
+                          ? 'ກຳລັງບັນທຶກ...'
+                          : 'ບັນທຶກ Excel',
+                      icon: Icons.download_rounded,
+                      variant: AppButtonVariant.success,
+                      onPressed:
+                          reportState.isFinanceExporting ||
+                              reportState.isFinanceLoading ||
+                              _isPreparingPdfPrint ||
+                              financeData == null ||
+                              !_canExportExcel
+                          ? null
+                          : _handleExport,
+                    ),
+                    const SizedBox(width: 12),
+                    AppButton(
+                      label: _isPreparingPdfPrint ? 'ກຳລັງ ພິມ...' : 'ພິມ PDF',
+                      icon: Icons.print_rounded,
+                      variant: AppButtonVariant.primary,
+                      onPressed:
+                          reportState.isFinanceExporting ||
+                              reportState.isFinanceLoading ||
+                              _isPreparingPdfPrint ||
+                              financeData == null ||
+                              !hasPrintableData
+                          ? null
+                          : () => _handlePdfPrint(financeData),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                AppButton(
-                  label: 'Export',
-                  icon: Icons.download_rounded,
-                  variant: AppButtonVariant.primary,
-                  onPressed: _handleExport,
+                const SizedBox(height: 16),
+                Expanded(
+                  child: reportState.isFinanceLoading
+                      ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
+                      : financeData == null
+                      ? EmptyWidget(
+                          title: 'ບໍ່ມີຂໍ້ມູນ',
+                          subtitle: 'ກົດດຶງຂໍ້ມູນເພື່ອເບິ່ງລາຍງານ',
+                          icon: Icons.insert_chart_outlined,
+                          onAction: _loadFinanceReport,
+                          actionLabel: 'ດຶງຂໍ້ມູນ',
+                        )
+                      : _buildContent(financeData),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: reportState.isFinanceLoading
-                  ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
-                  : financeData == null
-                  ? EmptyWidget(
-                      title: 'ບໍ່ມີຂໍ້ມູນ',
-                      subtitle: 'ກົດດຶງຂໍ້ມູນເພື່ອເບິ່ງລາຍງານ',
-                      icon: Icons.insert_chart_outlined,
-                      onAction: _loadFinanceReport,
-                      actionLabel: 'ດຶງຂໍ້ມູນ',
-                    )
-                  : _buildContent(financeData),
-            ),
-          ],
+          ),
         ),
-      ),
+        if (_isPreparingPdfPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.print_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານການເງິນ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
+      ],
     );
   }
 

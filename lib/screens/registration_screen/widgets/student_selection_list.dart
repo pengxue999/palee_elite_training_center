@@ -22,6 +22,7 @@ class StudentSelectionList extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<StudentSelectionItem> onSelect;
   final VoidCallback? onClearSearch;
+  final Widget? action;
 
   const StudentSelectionList({
     super.key,
@@ -32,6 +33,7 @@ class StudentSelectionList extends StatelessWidget {
     required this.onSearchChanged,
     required this.onSelect,
     this.onClearSearch,
+    this.action,
   });
 
   @override
@@ -40,17 +42,25 @@ class StudentSelectionList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppTextField(
-          controller: searchController,
-          hint: 'ຄົ້ນຫາດ້ວຍລະຫັດ, ຊື່, ໂຮງຮຽນ...',
-          prefixIcon: const Icon(Icons.search_rounded, size: 20),
-          suffixIcon: searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  onPressed: onClearSearch,
-                )
-              : null,
-          onChanged: onSearchChanged,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppTextField(
+                controller: searchController,
+                hint: 'ຄົ້ນຫາດ້ວຍລະຫັດ, ຊື່, ໂຮງຮຽນ...',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: onClearSearch,
+                      )
+                    : null,
+                onChanged: onSearchChanged,
+              ),
+            ),
+            if (action != null) ...[const SizedBox(width: 12), action!],
+          ],
         ),
         const SizedBox(height: 14),
 

@@ -30,17 +30,32 @@ class AppDropdown<T> extends StatefulWidget {
 class _AppDropdownState<T> extends State<AppDropdown<T>> {
   bool _isOpen = false;
 
+  static const _borderRadius = 10.0;
+
   Color get _borderColor {
-    if (widget.errorText != null) return AppColors.destructive.withOpacity(0.8);
-    if (!widget.enabled) return AppColors.border.withOpacity(0.3);
+    if (widget.errorText != null)
+      return AppColors.destructive.withOpacity(0.35);
+    if (!widget.enabled) return AppColors.border.withOpacity(0.55);
     return _isOpen
-        ? AppColors.primary.withOpacity(0.7)
-        : AppColors.border.withOpacity(0.5);
+        ? AppColors.primary.withOpacity(0.45)
+        : const Color(0xFFD5DEE9);
   }
 
   Color get _fillColor {
-    if (!widget.enabled) return AppColors.input.withOpacity(0.4);
-    return _isOpen ? AppColors.primary.withOpacity(0.04) : AppColors.input;
+    if (!widget.enabled) return const Color(0xFFF8FAFC);
+    return _isOpen ? const Color(0xFFFFFFFF) : AppColors.card;
+  }
+
+  Color get _labelColor {
+    if (!widget.enabled) return AppColors.mutedForeground.withOpacity(0.75);
+    if (_isOpen) return AppColors.primaryDark.withOpacity(0.9);
+    return AppColors.foreground.withOpacity(0.72);
+  }
+
+  Color get _iconColor {
+    if (!widget.enabled) return AppColors.border;
+    if (_isOpen) return AppColors.primary.withOpacity(0.78);
+    return AppColors.mutedForeground.withOpacity(0.85);
   }
 
   @override
@@ -58,11 +73,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.1,
-                  color: _isOpen
-                      ? AppColors.primary
-                      : widget.enabled
-                      ? AppColors.foreground.withOpacity(0.85)
-                      : AppColors.mutedForeground,
+                  color: _labelColor,
                   fontFamily: 'NotoSansLao',
                 ),
               ),
@@ -85,14 +96,14 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
             color: _fillColor,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _borderColor, width: _isOpen ? 1.5 : 1),
+            borderRadius: BorderRadius.circular(_borderRadius),
+            border: Border.all(color: _borderColor, width: _isOpen ? 1.8 : 1),
             boxShadow: _isOpen
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: AppColors.primary.withOpacity(0.10),
                       blurRadius: 0,
-                      spreadRadius: 3,
+                      spreadRadius: 1.2,
                     ),
                   ]
                 : [],
@@ -108,7 +119,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
-                          color: AppColors.mutedForeground.withOpacity(0.55),
+                          color: AppColors.mutedForeground.withOpacity(0.62),
                           fontFamily: 'NotoSansLao',
                         ),
                       )
@@ -120,16 +131,12 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                   curve: Curves.easeInOut,
                   child: Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    color: _isOpen
-                        ? AppColors.primary
-                        : widget.enabled
-                        ? AppColors.mutedForeground
-                        : AppColors.border,
+                    color: _iconColor,
                     size: 20,
                   ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(_borderRadius),
                 dropdownColor: AppColors.card,
                 menuMaxHeight: 280,
                 style: TextStyle(
@@ -199,7 +206,12 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                     ),
                   );
                 }).toList(),
-                onChanged: widget.enabled ? widget.onChanged : null,
+                onChanged: widget.enabled
+                    ? (value) {
+                        setState(() => _isOpen = false);
+                        widget.onChanged?.call(value);
+                      }
+                    : null,
                 onTap: () => setState(() => _isOpen = !_isOpen),
                 elevation: 3,
               ),

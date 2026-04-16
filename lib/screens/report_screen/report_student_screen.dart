@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
-import 'package:palee_elite_training_center/models/academic_year_model.dart';
-import 'package:palee_elite_training_center/models/district_model.dart';
-import 'package:palee_elite_training_center/models/province_model.dart';
+import 'package:palee_elite_training_center/core/utils/student_report_printer.dart';
 import 'package:palee_elite_training_center/models/report_models.dart';
 import 'package:palee_elite_training_center/providers/academic_year_provider.dart';
 import 'package:palee_elite_training_center/providers/district_provider.dart';
@@ -14,6 +12,7 @@ import 'package:palee_elite_training_center/widgets/app_card.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
 import 'package:palee_elite_training_center/widgets/app_toast.dart';
+import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:typed_data';
 import 'dart:convert';
@@ -33,6 +32,7 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
   String? _selectedScholarship;
   String? _selectedDormitoryType;
   String? _selectedGender;
+  bool _isPreparingPdfPrint = false;
 
   @override
   void initState() {
@@ -132,237 +132,327 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
     }
   }
 
+  Future<void> _handlePdfPrint(ReportState reportState) async {
+    final filters = reportState.filters;
+    if (_isPreparingPdfPrint || filters == null) {
+      return;
+    }
+
+    setState(() => _isPreparingPdfPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showStudentReportPrintDialog(
+        context: context,
+        students: reportState.students,
+        filters: filters,
+        totalCount: reportState.totalCount,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPdfPrint) {
+            setState(() => _isPreparingPdfPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPdfPrint) {
+        setState(() => _isPreparingPdfPrint = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final reportState = ref.watch(reportProvider);
     final academicYearState = ref.watch(academicYearProvider);
     final provinceState = ref.watch(provinceProvider);
     final districtState = ref.watch(districtProvider);
+    final hasStudentData = reportState.students.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.filter_alt_sharp,
-                      size: 20,
-                      color: AppColors.primary,
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.filter_alt_sharp,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'ຕົວກອງ',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _clearFilters,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Refresh'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'ຕົວກອງ',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.foreground,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _clearFilters,
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('Refresh'),
+                    const SizedBox(height: 16),
+
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        SizedBox(
+                          width: 200,
+                          child: AppDropdown<String>(
+                            label: 'ສົກຮຽນ',
+                            value: _selectedAcademicId,
+                            items: academicYearState.academicYears.map((ay) {
+                              return DropdownMenuItem(
+                                value: ay.academicId,
+                                child: Text(ay.academicYear),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedAcademicId = value);
+                              _applyFilters();
+                            },
+                            hint: 'ທັງໝົດ',
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 180,
+                          child: AppDropdown<int>(
+                            label: 'ແຂວງ',
+                            value: _selectedProvinceId,
+                            items: provinceState.provinces.map((p) {
+                              return DropdownMenuItem(
+                                value: p.provinceId,
+                                child: Text(p.provinceName),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedProvinceId = value;
+                                _selectedDistrictId = null;
+                              });
+                              if (value != null) {
+                                _loadDistricts(value);
+                              }
+                              _applyFilters();
+                            },
+                            hint: 'ທັງໝົດ',
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 180,
+                          child: AppDropdown<int>(
+                            label: 'ເມືອງ',
+                            value: _selectedDistrictId,
+                            items: districtState.filteredDistricts.map((d) {
+                              return DropdownMenuItem(
+                                value: d.districtId,
+                                child: Text(d.districtName),
+                              );
+                            }).toList(),
+                            onChanged:
+                                _selectedProvinceId == null ||
+                                    districtState.filteredDistricts.isEmpty
+                                ? null
+                                : (value) {
+                                    setState(() => _selectedDistrictId = value);
+                                    _applyFilters();
+                                  },
+                            hint: _selectedProvinceId == null
+                                ? 'ເລືອກແຂວງກ່ອນ'
+                                : 'ທັງໝົດ',
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 180,
+                          child: AppDropdown<String>(
+                            label: 'ສະຖານະທຶນ',
+                            value: _selectedScholarship,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'ໄດ້ຮັບທຶນ',
+                                child: Text('ໄດ້ຮັບທຶນ'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'ບໍ່ໄດ້ຮັບທຶນ',
+                                child: Text('ບໍ່ໄດ້ຮັບທຶນ'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedScholarship = value);
+                              _applyFilters();
+                            },
+                            hint: 'ທັງໝົດ',
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 160,
+                          child: AppDropdown<String>(
+                            label: 'ປະເພດຫໍພັກ',
+                            value: _selectedDormitoryType,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'ຫໍພັກໃນ',
+                                child: Text('ຫໍພັກໃນ'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'ຫໍພັກນອກ',
+                                child: Text('ຫໍພັກນອກ'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedDormitoryType = value);
+                              _applyFilters();
+                            },
+                            hint: 'ທັງໝົດ',
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 140,
+                          child: AppDropdown<String>(
+                            label: 'ເພດ',
+                            value: _selectedGender,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'ຊາຍ',
+                                child: Text('ຊາຍ'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'ຍິງ',
+                                child: Text('ຍິງ'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() => _selectedGender = value);
+                              _applyFilters();
+                            },
+                            hint: 'ທັງໝົດ',
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
 
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    SizedBox(
-                      width: 200,
-                      child: AppDropdown<String>(
-                        label: 'ສົກຮຽນ',
-                        value: _selectedAcademicId,
-                        items: academicYearState.academicYears.map((ay) {
-                          return DropdownMenuItem(
-                            value: ay.academicId,
-                            child: Text(ay.academicYear),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedAcademicId = value);
-                          _applyFilters();
-                        },
-                        hint: 'ທັງໝົດ',
-                      ),
+              if (reportState.filters != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.3),
                     ),
-
-                    SizedBox(
-                      width: 180,
-                      child: AppDropdown<int>(
-                        label: 'ແຂວງ',
-                        value: _selectedProvinceId,
-                        items: provinceState.provinces.map((p) {
-                          return DropdownMenuItem(
-                            value: p.provinceId,
-                            child: Text(p.provinceName),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedProvinceId = value;
-                            _selectedDistrictId = null;
-                          });
-                          if (value != null) {
-                            _loadDistricts(value);
-                          }
-                          _applyFilters();
-                        },
-                        hint: 'ທັງໝົດ',
-                      ),
-                    ),
-
-                    SizedBox(
-                      width: 180,
-                      child: AppDropdown<int>(
-                        label: 'ເມືອງ',
-                        value: _selectedDistrictId,
-                        items: districtState.filteredDistricts.map((d) {
-                          return DropdownMenuItem(
-                            value: d.districtId,
-                            child: Text(d.districtName),
-                          );
-                        }).toList(),
-                        onChanged:
-                            _selectedProvinceId == null ||
-                                districtState.filteredDistricts.isEmpty
-                            ? null
-                            : (value) {
-                                setState(() => _selectedDistrictId = value);
-                                _applyFilters();
-                              },
-                        hint: _selectedProvinceId == null
-                            ? 'ເລືອກແຂວງກ່ອນ'
-                            : 'ທັງໝົດ',
-                      ),
-                    ),
-
-                    SizedBox(
-                      width: 180,
-                      child: AppDropdown<String>(
-                        label: 'ສະຖານະທຶນ',
-                        value: _selectedScholarship,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'ໄດ້ຮັບທຶນ',
-                            child: Text('ໄດ້ຮັບທຶນ'),
+                  ),
+                  child: Row(
+                    children: [
+                      if (hasStudentData) ...[
+                        AppButton(
+                          label: reportState.isExporting
+                              ? 'ກຳລັງ Export...'
+                              : 'ບັນທຶກ Excel',
+                          icon: Icons.download_rounded,
+                          variant: AppButtonVariant.success,
+                          onPressed:
+                              reportState.isExporting || _isPreparingPdfPrint
+                              ? null
+                              : _exportToCsv,
+                        ),
+                        const SizedBox(width: 12),
+                        AppButton(
+                          label: _isPreparingPdfPrint
+                              ? 'ກຳລັງ ພິມ...'
+                              : 'ພິມ PDF',
+                          icon: Icons.print,
+                          variant: AppButtonVariant.primary,
+                          onPressed:
+                              reportState.isExporting || _isPreparingPdfPrint
+                              ? null
+                              : () => _handlePdfPrint(reportState),
+                        ),
+                      ] else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
                           ),
-                          DropdownMenuItem(
-                            value: 'ບໍ່ໄດ້ຮັບທຶນ',
-                            child: Text('ບໍ່ໄດ້ຮັບທຶນ'),
+                          decoration: BoxDecoration(
+                            color: AppColors.muted,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
                           ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedScholarship = value);
-                          _applyFilters();
-                        },
-                        hint: 'ທັງໝົດ',
-                      ),
-                    ),
-
-                    SizedBox(
-                      width: 160,
-                      child: AppDropdown<String>(
-                        label: 'ປະເພດຫໍພັກ',
-                        value: _selectedDormitoryType,
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'ຫໍພັກໃນ',
-                            child: Text('ຫໍພັກໃນ'),
+                          child: const Text(
+                            'ບໍ່ມີຂໍ້ມູນ ຈຶ່ງບໍ່ສາມາດ Export ຫຼື ພິມໄດ້',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.mutedForeground,
+                            ),
                           ),
-                          DropdownMenuItem(
-                            value: 'ຫໍພັກນອກ',
-                            child: Text('ຫໍພັກນອກ'),
+                        ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${reportState.totalCount} ຄົນ',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedDormitoryType = value);
-                          _applyFilters();
-                        },
-                        hint: 'ທັງໝົດ',
+                        ),
                       ),
-                    ),
-
-                    SizedBox(
-                      width: 140,
-                      child: AppDropdown<String>(
-                        label: 'ເພດ',
-                        value: _selectedGender,
-                        items: const [
-                          DropdownMenuItem(value: 'ຊາຍ', child: Text('ຊາຍ')),
-                          DropdownMenuItem(value: 'ຍິງ', child: Text('ຍິງ')),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _selectedGender = value);
-                          _applyFilters();
-                        },
-                        hint: 'ທັງໝົດ',
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
+
+              Expanded(child: _buildDataTable(reportState)),
+            ],
           ),
-          const SizedBox(height: 16),
-
-          if (reportState.filters != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  AppButton(
-                    label: reportState.isExporting
-                        ? 'ກຳລັງ Export...'
-                        : 'Export CSV',
-                    icon: Icons.download_rounded,
-                    variant: AppButtonVariant.primary,
-                    onPressed:
-                        reportState.students.isEmpty || reportState.isExporting
-                        ? null
-                        : _exportToCsv,
-                  ),
-                  Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${reportState.totalCount} ຄົນ',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          Expanded(child: _buildDataTable(reportState)),
-        ],
-      ),
+        ),
+        if (_isPreparingPdfPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.print_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານນັກຮຽນ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
+      ],
     );
   }
 

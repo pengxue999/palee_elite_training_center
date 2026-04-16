@@ -1,4 +1,5 @@
 import 'package:palee_elite_training_center/core/utils/http_helper.dart';
+import 'dart:typed_data';
 import '../models/report_models.dart';
 
 class ReportService {
@@ -23,9 +24,10 @@ class ReportService {
   Future<ExportReportResponse> exportFinanceReport({
     String? academicId,
     int? year,
+    String tab = 'overview',
     String format = 'csv',
   }) async {
-    final queryParams = <String, String>{'format': format};
+    final queryParams = <String, String>{'format': format, 'tab': tab};
     if (academicId != null) queryParams['academic_id'] = academicId;
     if (year != null) queryParams['year'] = year.toString();
 
@@ -35,6 +37,33 @@ class ReportService {
 
     final response = await _http.get('/reports/finance/export?$queryString');
     return ExportReportResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<Uint8List> createFinanceReportPdf({
+    String? academicId,
+    int? year,
+    String tab = 'overview',
+  }) async {
+    final queryParams = <String, String>{'tab': tab};
+    if (academicId != null) queryParams['academic_id'] = academicId;
+    if (year != null) queryParams['year'] = year.toString();
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/finance/report-pdf${queryString.isEmpty ? '' : '?$queryString'}',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
   }
 
   Future<StudentReportResponse> getStudentReport({
@@ -86,6 +115,40 @@ class ReportService {
     return ExportReportResponse.fromJson(_http.handleJson(response));
   }
 
+  Future<Uint8List> createStudentReportPdf({
+    String? academicId,
+    int? provinceId,
+    int? districtId,
+    String? scholarship,
+    String? dormitoryType,
+    String? gender,
+  }) async {
+    final queryParams = <String, String>{};
+    if (academicId != null) queryParams['academic_id'] = academicId;
+    if (provinceId != null) queryParams['province_id'] = provinceId.toString();
+    if (districtId != null) queryParams['district_id'] = districtId.toString();
+    if (scholarship != null) queryParams['scholarship'] = scholarship;
+    if (dormitoryType != null) queryParams['dormitory_type'] = dormitoryType;
+    if (gender != null) queryParams['gender'] = gender;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/students/report-pdf${queryString.isEmpty ? '' : '?$queryString'}',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
+  }
+
   Future<StudentSummaryResponse> getStudentSummary({String? academicId}) async {
     final queryString = academicId != null
         ? '?academic_id=${Uri.encodeComponent(academicId)}'
@@ -111,7 +174,9 @@ class ReportService {
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
         .join('&');
 
-    final response = await _http.get('/reports/teacher-attendance?$queryString');
+    final response = await _http.get(
+      '/reports/teacher-attendance?$queryString',
+    );
     return TeacherAttendanceReportResponse.fromJson(_http.handleJson(response));
   }
 
@@ -132,8 +197,40 @@ class ReportService {
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
         .join('&');
 
-    final response = await _http.get('/reports/teacher-attendance/export?$queryString');
+    final response = await _http.get(
+      '/reports/teacher-attendance/export?$queryString',
+    );
     return ExportReportResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<Uint8List> createTeacherAttendanceReportPdf({
+    String? academicId,
+    String? month,
+    String? status,
+    String? teacherId,
+  }) async {
+    final queryParams = <String, String>{};
+    if (academicId != null) queryParams['academic_id'] = academicId;
+    if (month != null) queryParams['month'] = month;
+    if (status != null) queryParams['status'] = status;
+    if (teacherId != null) queryParams['teacher_id'] = teacherId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/teacher-attendance/report-pdf${queryString.isEmpty ? '' : '?$queryString'}',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
   }
 
   Future<PopularSubjectsReportResponse> getPopularSubjectsReport({

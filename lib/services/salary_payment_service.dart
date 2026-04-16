@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/salary_payment_model.dart';
 import '../core/utils/http_helper.dart';
 
@@ -94,6 +96,21 @@ class SalaryPaymentService {
       body: request.toJson(),
     );
     return SalaryPaymentSingleResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<Uint8List> createSalaryPaymentReceiptPdf(String paymentId) async {
+    final response = await _http.get(
+      '/salary-payments/$paymentId/receipt-pdf',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
   }
 
   Future<SalaryPaymentSingleResponse> updatePayment(

@@ -78,7 +78,9 @@ class TuitionPaymentNotifier extends StateNotifier<TuitionPaymentState> {
     state = state.copyWith(registrationPayments: []);
   }
 
-  Future<bool> createPayment(TuitionPaymentRequest request) async {
+  Future<TuitionPaymentModel?> createPayment(
+    TuitionPaymentRequest request,
+  ) async {
     state = state.copyWith(isCreating: true, error: null);
     try {
       final response = await _service.createTuitionPayment(request);
@@ -87,10 +89,10 @@ class TuitionPaymentNotifier extends StateNotifier<TuitionPaymentState> {
         registrationPayments: [...state.registrationPayments, response.data],
         isCreating: false,
       );
-      return true;
+      return response.data;
     } catch (e) {
       state = state.copyWith(error: e.toString(), isCreating: false);
-      return false;
+      return null;
     }
   }
 

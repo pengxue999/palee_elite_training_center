@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/models/district_model.dart';
 import 'package:palee_elite_training_center/models/province_model.dart';
 import 'package:palee_elite_training_center/screens/registration_screen/new_registration_screen.dart';
@@ -31,6 +30,8 @@ class NewStudentForm extends StatelessWidget {
   final bool isLoadingDistricts;
   final String dormitoryType;
   final ValueChanged<String?> onDormitoryChanged;
+  final bool showSubmitButton;
+  final bool wrapInForm;
 
   const NewStudentForm({
     super.key,
@@ -56,6 +57,8 @@ class NewStudentForm extends StatelessWidget {
     required this.isLoadingDistricts,
     required this.dormitoryType,
     required this.onDormitoryChanged,
+    this.showSubmitButton = true,
+    this.wrapInForm = true,
   });
 
   @override
@@ -69,195 +72,169 @@ class NewStudentForm extends StatelessWidget {
       orElse: () => const ProvinceModel(provinceId: 0, provinceName: ''),
     );
 
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 15,
-                color: Color(0xFF6366F1),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'ຊື່',
+                hint: 'ປ້ອນຊື່ນັກຮຽນ',
+                controller: firstNameCtrl,
+                required: true,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນຊື່' : null,
               ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'ປ້ອນຂໍ້ມູນນັກຮຽນໃໝ່',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppTextField(
+                label: 'ນາມສະກຸນ',
+                hint: 'ປ້ອນນາມສະກຸນ',
+                controller: lastNameCtrl,
+                required: true,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'ກະລຸນາປ້ອນນາມສະກຸນ'
+                    : null,
               ),
-            ],
-          ),
-          Divider(height: 32, thickness: 0.5, color: AppColors.mutedForeground),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: AppTextField(
-                  label: 'ຊື່',
-                  hint: 'ປ້ອນຊື່ນັກຮຽນ',
-                  controller: firstNameCtrl,
-                  required: true,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນຊື່' : null,
-                ),
+        AppDropdown<String>(
+          label: 'ເພດ',
+          required: true,
+          hint: 'ເລືອກເພດ',
+          value: gender,
+          items: ['ຊາຍ', 'ຍິງ']
+              .map((g) => DropdownMenuItem<String>(value: g, child: Text(g)))
+              .toList(),
+          onChanged: onGenderChanged,
+        ),
+
+        const SizedBox(height: 14),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: AppTextField(
+                label: 'ເບີໂທນັກຮຽນ',
+                hint: '020XXXXXXXX',
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                required: true,
+                digitOnly: DigitOnly.integer,
+                maxLength: phoneCtrl.text.startsWith('020') ? 11 : 10,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: AppTextField(
-                  label: 'ນາມສະກຸນ',
-                  hint: 'ປ້ອນນາມສະກຸນ',
-                  controller: lastNameCtrl,
-                  required: true,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'ກະລຸນາປ້ອນນາມສະກຸນ'
-                      : null,
-                ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppTextField(
+                label: 'ເບີໂທຜູ້ປົກຄອງ',
+                hint: '020XXXXXXXX ຫຼື 030XXXXXXX',
+                controller: parentPhoneCtrl,
+                keyboardType: TextInputType.phone,
+                digitOnly: DigitOnly.integer,
+                maxLength: parentPhoneCtrl.text.startsWith('020') ? 11 : 10,
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 14),
+        const SizedBox(height: 14),
 
-          AppDropdown<String>(
-            label: 'ເພດ',
-            required: true,
-            hint: 'ເລືອກເພດ',
-            value: gender,
-            items: ['ຊາຍ', 'ຍິງ']
-                .map((g) => DropdownMenuItem<String>(value: g, child: Text(g)))
-                .toList(),
-            onChanged: onGenderChanged,
-          ),
+        AppTextField(
+          label: 'ໂຮງຮຽນ',
+          hint: 'ປ້ອນຊື່ໂຮງຮຽນ (ຕົວຢ່າງ: ມສ ວຽງຈັນ, ມສ ຈອມເພັດ)',
+          controller: schoolCtrl,
+          required: true,
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນໂຮງຮຽນ' : null,
+        ),
 
-          const SizedBox(height: 14),
+        const SizedBox(height: 14),
 
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: AppTextField(
-                  label: 'ເບີໂທນັກຮຽນ',
-                  hint: '020XXXXXXXX',
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  required: true,
-                  digitOnly: DigitOnly.integer,
-                  maxLength: phoneCtrl.text.startsWith('020') ? 11 : 10,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: AppTextField(
-                  label: 'ເບີໂທຜູ້ປົກຄອງ',
-                  hint: '020XXXXXXXX ຫຼື 030XXXXXXX',
-                  controller: parentPhoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  digitOnly: DigitOnly.integer,
-                  maxLength: parentPhoneCtrl.text.startsWith('020') ? 11 : 10,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          AppTextField(
-            label: 'ໂຮງຮຽນ',
-            hint: 'ປ້ອນຊື່ໂຮງຮຽນ (ຕົວຢ່າງ: ມສ ວຽງຈັນ, ມສ ຈອມເພັດ)',
-            controller: schoolCtrl,
-            required: true,
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນໂຮງຮຽນ' : null,
-          ),
-
-          const SizedBox(height: 14),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: isLoadingProvinces
-                    ? const Center(
-                        child: SizedBox(
-                          height: 40,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : AppDropdown<int>(
-                        label: 'ແຂວງ',
-                        required: true,
-                        hint: 'ເລືອກແຂວງ',
-                        value: selectedProvinceId,
-                        items: provinces
-                            .map(
-                              (p) => DropdownMenuItem<int>(
-                                value: p.provinceId,
-                                child: Text(p.provinceName),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: onProvinceChanged,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: isLoadingProvinces
+                  ? const Center(
+                      child: SizedBox(
+                        height: 40,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: isLoadingDistricts
-                    ? const Center(
-                        child: SizedBox(
-                          height: 40,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : AppDropdown<int>(
-                        label: 'ເມືອງ',
-                        required: true,
-                        hint: 'ເລືອກເມືອງ',
-                        value: selectedDistrictId,
-                        items: availableDistricts
-                            .map(
-                              (d) => DropdownMenuItem<int>(
-                                value: d.districtId,
-                                child: Text(d.districtName),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: selectedProvinceId != null
-                            ? onDistrictChanged
-                            : null,
-                        enabled:
-                            selectedProvinceId != null &&
-                            availableDistricts.isNotEmpty,
+                    )
+                  : AppDropdown<int>(
+                      label: 'ແຂວງ',
+                      required: true,
+                      hint: 'ເລືອກແຂວງ',
+                      value: selectedProvinceId,
+                      items: provinces
+                          .map(
+                            (p) => DropdownMenuItem<int>(
+                              value: p.provinceId,
+                              child: Text(p.provinceName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: onProvinceChanged,
+                    ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: isLoadingDistricts
+                  ? const Center(
+                      child: SizedBox(
+                        height: 40,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-              ),
-            ],
-          ),
+                    )
+                  : AppDropdown<int>(
+                      label: 'ເມືອງ',
+                      required: true,
+                      hint: 'ເລືອກເມືອງ',
+                      value: selectedDistrictId,
+                      items: availableDistricts
+                          .map(
+                            (d) => DropdownMenuItem<int>(
+                              value: d.districtId,
+                              child: Text(d.districtName),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: selectedProvinceId != null
+                          ? onDistrictChanged
+                          : null,
+                      enabled:
+                          selectedProvinceId != null &&
+                          availableDistricts.isNotEmpty,
+                    ),
+            ),
+          ],
+        ),
 
-          const SizedBox(height: 14),
+        const SizedBox(height: 14),
 
-          AppDropdown<String>(
-            label: 'ຫໍພັກ',
-            hint: 'ເລືອກປະເພດຫໍພັກ',
-            value: dormitoryType,
-            required: true,
-            items: const [
-              DropdownMenuItem(value: 'ຫໍພັກນອກ', child: Text('ຫໍພັກນອກ')),
-              DropdownMenuItem(value: 'ຫໍພັກໃນ', child: Text('ຫໍພັກໃນ')),
-            ],
-            onChanged: onDormitoryChanged,
-          ),
+        AppDropdown<String>(
+          label: 'ຫໍພັກ',
+          hint: 'ເລືອກປະເພດຫໍພັກ',
+          value: dormitoryType,
+          required: true,
+          items: const [
+            DropdownMenuItem(value: 'ຫໍພັກນອກ', child: Text('ຫໍພັກນອກ')),
+            DropdownMenuItem(value: 'ຫໍພັກໃນ', child: Text('ຫໍພັກໃນ')),
+          ],
+          onChanged: onDormitoryChanged,
+        ),
 
+        if (showSubmitButton) ...[
           const SizedBox(height: 20),
-
           Align(
             alignment: Alignment.centerRight,
             child: IntrinsicWidth(
@@ -269,7 +246,13 @@ class NewStudentForm extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      ],
     );
+
+    if (!wrapInForm) {
+      return content;
+    }
+
+    return Form(key: formKey, child: content);
   }
 }

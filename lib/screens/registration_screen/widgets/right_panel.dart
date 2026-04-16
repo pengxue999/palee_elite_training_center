@@ -12,12 +12,17 @@ class RightPanel extends StatelessWidget {
   final String academicYear;
   final String registrationDate;
   final String? studentName;
+  final int tuitionFee;
   final int totalFee;
   final int discount;
   final int netFee;
   final List<DiscountModel> discounts;
   final String? selectedDiscountId;
   final ValueChanged<String?> onDiscountChanged;
+  final int otherFee;
+  final String otherFeeLabel;
+  final TextEditingController otherFeeController;
+  final ValueChanged<String> onOtherFeeChanged;
   final Map<String, String> scholarshipStatusByFee;
   final void Function(String feeId, String status) onScholarshipChanged;
   final bool autoRenew;
@@ -29,6 +34,7 @@ class RightPanel extends StatelessWidget {
   final VoidCallback onCancel;
 
   const RightPanel({
+    super.key,
     required this.step3num,
     required this.step4num,
     required this.step5num,
@@ -37,12 +43,17 @@ class RightPanel extends StatelessWidget {
     required this.academicYear,
     required this.registrationDate,
     required this.studentName,
+    required this.tuitionFee,
     required this.totalFee,
     required this.discount,
     required this.netFee,
     required this.discounts,
     required this.selectedDiscountId,
     required this.onDiscountChanged,
+    required this.otherFee,
+    required this.otherFeeLabel,
+    required this.otherFeeController,
+    required this.onOtherFeeChanged,
     required this.scholarshipStatusByFee,
     required this.onScholarshipChanged,
     required this.autoRenew,
@@ -64,10 +75,6 @@ class RightPanel extends StatelessWidget {
           onRemove: onRemove,
           scholarshipStatusByFee: scholarshipStatusByFee,
           onScholarshipChanged: onScholarshipChanged,
-          discounts: discounts,
-          selectedDiscountId: selectedDiscountId,
-          onDiscountChanged: onDiscountChanged,
-          discountEnabled: discountEnabled,
         ),
         const SizedBox(height: 14),
         SummarySection(
@@ -75,9 +82,18 @@ class RightPanel extends StatelessWidget {
           academicYear: academicYear,
           registrationDate: registrationDate,
           studentName: studentName,
+          tuitionFee: tuitionFee,
+          otherFee: otherFee,
+          otherFeeLabel: otherFeeLabel,
           totalFee: totalFee,
           discount: discount,
           netFee: netFee,
+          discounts: discounts,
+          selectedDiscountId: selectedDiscountId,
+          onDiscountChanged: onDiscountChanged,
+          discountEnabled: discountEnabled,
+          otherFeeController: otherFeeController,
+          onOtherFeeChanged: onOtherFeeChanged,
           autoRenew: autoRenew,
           onAutoRenewChanged: onAutoRenewChanged,
           canSave: canSave,

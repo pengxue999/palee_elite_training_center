@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../core/utils/salary_payment_receipt_printer.dart';
 import '../../../models/salary_payment_model.dart';
 import '../../../providers/salary_payment_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/success_overlay.dart';
 
 class PaymentDialog extends ConsumerStatefulWidget {
   final String teacherId;
@@ -62,10 +64,11 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
     final calc = ref.read(salaryPaymentProvider).calculation;
     if (calc != null) {
       final amount = calc.remainingBalance;
-      _amountController.text = amount > 0 ? FormatUtils.formatNumber(amount.toInt()) : '';
+      _amountController.text = amount > 0
+          ? FormatUtils.formatNumber(amount.toInt())
+          : '';
     }
   }
-
 
   Future<void> _submitPayment() async {
     final calc = ref.read(salaryPaymentProvider).calculation;
@@ -117,13 +120,23 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
     if (mounted) {
       setState(() => _isSaving = false);
       if (paymentId != null) {
-        Navigator.of(context).pop();
+        final dialogNavigator = Navigator.of(context);
+        final rootNavigator = Navigator.of(context, rootNavigator: true);
+
+        await SuccessOverlay.show(
+          rootNavigator.context,
+          message: 'ບັນທຶກການຈ່າຍເງິນສຳເລັດ',
+        );
+
+        if (!mounted || !rootNavigator.context.mounted) {
+          return;
+        }
+
+        dialogNavigator.pop();
         widget.onPaymentComplete?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ບັນທຶກການຈ່າຍເງິນສຳເລັດ'),
-            backgroundColor: AppColors.success,
-          ),
+        await showSalaryPaymentPrintDialog(
+          context: rootNavigator.context,
+          paymentId: paymentId,
         );
       } else {
         final err = ref.read(salaryPaymentProvider).error;
@@ -166,7 +179,7 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.05),
+                  color: AppColors.primary.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
@@ -217,8 +230,14 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
               ),
               const SizedBox(height: 20),
 
-              _buildSummaryRow('ເງິນສອນທັງໝົດ', FormatUtils.formatKip(calc.totalAmount.toInt())),
-              _buildSummaryRow('ຈ່າຍໄປແລ້ວ', FormatUtils.formatKip(calc.totalPaid.toInt())),
+              _buildSummaryRow(
+                'ເງິນສອນທັງໝົດ',
+                FormatUtils.formatKip(calc.totalAmount.toInt()),
+              ),
+              _buildSummaryRow(
+                'ຈ່າຍໄປແລ້ວ',
+                FormatUtils.formatKip(calc.totalPaid.toInt()),
+              ),
               if (calc.priorDebt != 0)
                 _buildSummaryRow(
                   calc.priorDebt > 0 ? 'ຍອດຄ້າງຈ່າຍຈາກເດືອນກ່ອນ' : 'ຍອດຄ້າງຮັບ',
@@ -262,7 +281,7 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -321,14 +340,14 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
       decoration: BoxDecoration(
         color: AppColors.destructiveLight,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.destructive.withOpacity(0.2)),
+        border: Border.all(color: AppColors.destructive.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.destructive.withOpacity(0.1),
+              color: AppColors.destructive.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(

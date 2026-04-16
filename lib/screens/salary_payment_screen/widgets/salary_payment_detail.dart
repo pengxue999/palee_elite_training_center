@@ -5,12 +5,12 @@ import '../../../core/utils/format_utils.dart';
 import '../../../models/salary_payment_model.dart';
 import '../../../providers/salary_payment_provider.dart';
 import '../../../widgets/app_data_table.dart';
-import '../../../widgets/app_button.dart';
 
 class SalaryPaymentDetail extends ConsumerStatefulWidget {
   final String? teacherId;
+  final Future<void> Function(SalaryPaymentModel payment)? onPrint;
 
-  const SalaryPaymentDetail({super.key, this.teacherId});
+  const SalaryPaymentDetail({super.key, this.teacherId, this.onPrint});
 
   @override
   ConsumerState<SalaryPaymentDetail> createState() =>
@@ -65,21 +65,19 @@ class _SalaryPaymentDetailState extends ConsumerState<SalaryPaymentDetail>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return Expanded(child: _PaymentHistorySection());
+    return _PaymentHistorySection(onPrint: widget.onPrint);
   }
 }
 
 class _PaymentHistorySection extends ConsumerWidget {
-  const _PaymentHistorySection();
+  final Future<void> Function(SalaryPaymentModel payment)? onPrint;
 
+  const _PaymentHistorySection({this.onPrint});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final allPayments = ref.watch(
       salaryPaymentProvider.select((s) => s.payments),
-    );
-    final isLoading = ref.watch(
-      salaryPaymentProvider.select((s) => s.isLoading),
     );
 
     return Column(
@@ -104,7 +102,7 @@ class _PaymentHistorySection extends ConsumerWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -153,7 +151,9 @@ class _PaymentHistorySection extends ConsumerWidget {
                 label: 'ຈຳນວນເງິນ',
                 flex: 2,
                 render: (value, row) => Text(
-                  FormatUtils.formatKip(double.tryParse(value?.toString() ?? '0')?.toInt() ?? 0),
+                  FormatUtils.formatKip(
+                    double.tryParse(value?.toString() ?? '0')?.toInt() ?? 0,
+                  ),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -161,7 +161,7 @@ class _PaymentHistorySection extends ConsumerWidget {
                   ),
                 ),
               ),
-               DataColumnDef<SalaryPaymentModel>(
+              DataColumnDef<SalaryPaymentModel>(
                 key: 'month',
                 label: 'ເດືອນ',
                 flex: 2,
@@ -187,6 +187,7 @@ class _PaymentHistorySection extends ConsumerWidget {
                 ),
               ),
             ],
+            onPrint: onPrint,
             onDelete: (row) => _showDeleteConfirmation(context, ref, row),
             showActions: true,
           ),

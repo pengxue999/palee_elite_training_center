@@ -1,8 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/utils/format_utils.dart';
-import 'package:palee_elite_training_center/models/discount_model.dart';
 import 'package:palee_elite_training_center/models/fee_model.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
 import 'package:palee_elite_training_center/screens/registration_screen/widgets/panel_card.dart';
@@ -13,21 +11,14 @@ class RegistrationDetailCard extends StatelessWidget {
   final ValueChanged<String> onRemove;
   final Map<String, String> scholarshipStatusByFee;
   final void Function(String feeId, String status) onScholarshipChanged;
-  final List<DiscountModel> discounts;
-  final String? selectedDiscountId;
-  final ValueChanged<String?> onDiscountChanged;
-  final bool discountEnabled;
 
-  const RegistrationDetailCard({super.key,
+  const RegistrationDetailCard({
+    super.key,
     required this.stepNum,
     required this.fees,
     required this.onRemove,
     required this.scholarshipStatusByFee,
     required this.onScholarshipChanged,
-    required this.discounts,
-    required this.selectedDiscountId,
-    required this.onDiscountChanged,
-    this.discountEnabled = true,
   });
 
   @override
@@ -217,9 +208,6 @@ class RegistrationDetailCard extends StatelessWidget {
                     ),
                   );
                 }),
-                const Divider(height: 1),
-                const SizedBox(height: 16),
-                _buildDiscountDropdown(),
               ],
             ),
     );
@@ -238,29 +226,6 @@ class RegistrationDetailCard extends StatelessWidget {
           onScholarshipChanged(feeId, v);
         }
       },
-    );
-  }
-
-  Widget _buildDiscountDropdown() {
-    return AppDropdown<String?>(
-      label: 'ເລືອກສ່ວນຫຼຸດ',
-      value: selectedDiscountId,
-      hint: 'ເລືອກສ່ວນຫຼຸດ...',
-      items: [
-        const DropdownMenuItem<String?>(
-          value: null,
-          child: Text('ບໍ່ມີສ່ວນຫຼຸດ'),
-        ),
-        ...discounts.map(
-          (d) => DropdownMenuItem<String?>(
-            value: d.discountId,
-            child: Text(
-              '${d.discountDescription} (${d.discountAmount.toInt()}%)',
-            ),
-          ),
-        ),
-      ],
-      onChanged: discountEnabled ? onDiscountChanged : null,
     );
   }
 }

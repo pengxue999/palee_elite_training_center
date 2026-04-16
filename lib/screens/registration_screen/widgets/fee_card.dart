@@ -8,7 +8,8 @@ class FeeCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const FeeCard({super.key,
+  const FeeCard({
+    super.key,
     required this.fee,
     required this.isSelected,
     required this.onTap,
@@ -26,7 +27,7 @@ class FeeCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           decoration: BoxDecoration(
             color: isSelected ? AppColors.successLight : AppColors.card,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected ? AppColors.success : AppColors.border,
               width: isSelected ? 1.8 : 1,

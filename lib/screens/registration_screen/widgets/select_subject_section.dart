@@ -113,66 +113,63 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_subjectNames.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.muted,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _subjectNames.map((subject) {
-                    final active = subject == _selectedSubject;
-                    final selectedInSubject =
-                        grouped[subject]
-                            ?.where(
-                              (f) => widget.selectedFeeIds.contains(f.feeId),
-                            )
-                            .length ??
-                        0;
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _subjectNames.map((subject) {
+                  final active = subject == _selectedSubject;
+                  final selectedInSubject =
+                      grouped[subject]
+                          ?.where(
+                            (f) => widget.selectedFeeIds.contains(f.feeId),
+                          )
+                          .length ??
+                      0;
 
-                    return MouseRegion(
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: MouseRegion(
                       cursor: SystemMouseCursors.click,
                       child: GestureDetector(
                         onTap: () => setState(() => _selectedSubject = subject),
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(right: 4),
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
+                            horizontal: 18,
+                            vertical: 12,
                           ),
                           decoration: BoxDecoration(
+                            color: active ? null : Colors.white,
                             gradient: active
                                 ? const LinearGradient(
                                     colors: [
-                                      AppColors.primary,
-                                      Color(0xFF6366F1),
+                                      Color(0xFF3B82F6),
+                                      Color(0xFF4F46E5),
                                     ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   )
                                 : null,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: active
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primary.withValues(
-                                        alpha: 0.3,
-                                      ),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
+                            borderRadius: BorderRadius.circular(26),
+                            border: Border.all(
+                              color: active
+                                  ? Colors.transparent
+                                  : const Color(0xFFD6DFEA),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: active
+                                    ? const Color(
+                                        0xFF4F46E5,
+                                      ).withValues(alpha: 0.22)
+                                    : const Color(
+                                        0xFF0F172A,
+                                      ).withValues(alpha: 0.06),
+                                blurRadius: active ? 18 : 10,
+                                offset: Offset(0, active ? 8 : 4),
+                              ),
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -181,32 +178,44 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
                                 subject,
                                 style: TextStyle(
                                   fontSize: 15,
-                                  fontWeight: active
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
+                                  fontWeight: FontWeight.w700,
                                   color: active
                                       ? Colors.white
-                                      : AppColors.primary,
+                                      : const Color(0xFF334155),
+                                  letterSpacing: 0.1,
                                 ),
                               ),
                               if (selectedInSubject > 0) ...[
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 8),
                                 Container(
-                                  width: 20,
-                                  height: 20,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: active
-                                        ? Colors.white.withValues(alpha: 0.3)
-                                        : AppColors.success,
-                                    shape: BoxShape.circle,
+                                        ? Colors.white.withValues(alpha: 0.22)
+                                        : const Color(0xFFE8F0FE),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: active
+                                          ? Colors.white.withValues(alpha: 0.18)
+                                          : const Color(0xFFD6E4FF),
+                                    ),
                                   ),
                                   child: Center(
                                     child: Text(
                                       '$selectedInSubject',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
+                                      style: TextStyle(
+                                        color: active
+                                            ? Colors.white
+                                            : const Color(0xFF2563EB),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ),
@@ -216,12 +225,12 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
                           ),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
 
           if (widget.isLoading)
             const Center(
@@ -261,7 +270,7 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
               children: [
                 LayoutBuilder(
                   builder: (ctx, box) {
-                    int cols = 3;
+                    int cols = 4;
                     if (box.maxWidth < Breakpoints.tablet) cols = 2;
                     if (box.maxWidth < 400) cols = 1;
 
@@ -297,7 +306,7 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
                         child: Column(

@@ -47,10 +47,13 @@ class AppTextField extends StatefulWidget {
   final String? label;
   final String? hint;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final bool obscureText;
   final TextInputType keyboardType;
+  final TextInputAction? textInputAction;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final void Function(String)? onFieldSubmitted;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final bool readOnly;
@@ -70,10 +73,13 @@ class AppTextField extends StatefulWidget {
     this.label,
     this.hint,
     this.controller,
+    this.focusNode,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
+    this.textInputAction,
     this.validator,
     this.onChanged,
+    this.onFieldSubmitted,
     this.prefixIcon,
     this.suffixIcon,
     this.readOnly = false,
@@ -96,10 +102,38 @@ class AppTextField extends StatefulWidget {
 class _AppTextFieldState extends State<AppTextField>
     with SingleTickerProviderStateMixin {
   late final FocusNode _focusNode;
+  late final bool _ownsFocusNode;
   late final AnimationController _animController;
   late final Animation<double> _borderAnim;
   bool _isFocused = false;
   String? _errorText;
+
+  static const _borderRadius = 10.0;
+
+  Color get _borderColor {
+    if (_errorText != null) {
+      return AppColors.destructive.withOpacity(0.35);
+    }
+    if (!widget.enabled) {
+      return AppColors.border.withOpacity(0.55);
+    }
+    if (_isFocused) {
+      return AppColors.primary.withOpacity(0.45);
+    }
+    return const Color(0xFFD5DEE9);
+  }
+
+  Color get _labelColor {
+    if (!widget.enabled) return AppColors.mutedForeground.withOpacity(0.75);
+    if (_isFocused) return AppColors.primaryDark.withOpacity(0.9);
+    return AppColors.foreground.withOpacity(0.72);
+  }
+
+  Color get _iconColor {
+    if (!widget.enabled) return AppColors.border;
+    if (_isFocused) return AppColors.primary.withOpacity(0.78);
+    return AppColors.mutedForeground.withOpacity(0.85);
+  }
 
   List<TextInputFormatter> get _inputFormatters {
     if (widget.thousandsSeparator) {
@@ -129,7 +163,8 @@ class _AppTextFieldState extends State<AppTextField>
   @override
   void initState() {
     super.initState();
-    _focusNode = FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 180),
@@ -151,15 +186,29 @@ class _AppTextFieldState extends State<AppTextField>
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (_ownsFocusNode) {
+      _focusNode.dispose();
+    }
     _animController.dispose();
     super.dispose();
   }
 
   Color get _fillColor {
-    if (!widget.enabled) return AppColors.input.withOpacity(0.4);
-    if (_isFocused) return AppColors.primary.withOpacity(0.04);
-    return AppColors.input;
+    if (!widget.enabled) return const Color(0xFFF8FAFC);
+    if (_isFocused) return const Color(0xFFFFFFFF);
+    return AppColors.card;
+  }
+
+  String? _validate(String? value) {
+    final error = widget.validator?.call(value);
+    if (error != _errorText) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && error != _errorText) {
+          setState(() => _errorText = error);
+        }
+      });
+    }
+    return error;
   }
 
   @override
@@ -177,11 +226,8 @@ class _AppTextFieldState extends State<AppTextField>
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.1,
-                  color: _isFocused
-                      ? AppColors.primary
-                      : widget.enabled
-                      ? AppColors.foreground.withOpacity(0.85)
-                      : AppColors.mutedForeground,
+                  color: _labelColor,
+                  fontFamily: 'NotoSansLao',
                 ),
               ),
               if (widget.required)
@@ -191,6 +237,7 @@ class _AppTextFieldState extends State<AppTextField>
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: AppColors.destructive,
+                    fontFamily: 'NotoSansLao',
                   ),
                 ),
             ],
@@ -205,21 +252,17 @@ class _AppTextFieldState extends State<AppTextField>
               duration: const Duration(milliseconds: 180),
               decoration: BoxDecoration(
                 color: _fillColor,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(_borderRadius),
                 border: Border.all(
-                  color: _errorText != null
-                      ? AppColors.destructive.withOpacity(0.8)
-                      : _isFocused
-                      ? AppColors.primary.withOpacity(0.7)
-                      : AppColors.border.withOpacity(0.5),
-                  width: _isFocused || _errorText != null ? 1.5 : 1,
+                  color: _borderColor,
+                  width: _isFocused ? 1.8 : 1,
                 ),
                 boxShadow: _isFocused
                     ? [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.08),
+                          color: AppColors.primary.withOpacity(0.10),
                           blurRadius: 0,
-                          spreadRadius: 3,
+                          spreadRadius: 2.2,
                         ),
                       ]
                     : [],
@@ -227,16 +270,19 @@ class _AppTextFieldState extends State<AppTextField>
               child: child,
             );
           },
-          child: TextField(
+          child: TextFormField(
             controller: widget.controller,
             focusNode: _focusNode,
             obscureText: widget.obscureText,
             keyboardType: _keyboardType,
+            textInputAction: widget.textInputAction,
             inputFormatters: _inputFormatters,
             readOnly: widget.readOnly,
             onTap: widget.onTap,
             maxLines: widget.maxLines,
             enabled: widget.enabled,
+            validator: _validate,
+            onFieldSubmitted: widget.onFieldSubmitted,
             onChanged: (v) {
               widget.onChanged?.call(v);
               final err = widget.validator?.call(v);
@@ -252,26 +298,21 @@ class _AppTextFieldState extends State<AppTextField>
                   ? AppColors.foreground
                   : AppColors.mutedForeground,
               letterSpacing: 0.1,
+              fontFamily: 'NotoSansLao',
             ),
             decoration: InputDecoration(
               hintText: widget.hint,
               hintStyle: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
-                color: AppColors.mutedForeground.withOpacity(0.55),
+                color: AppColors.mutedForeground.withOpacity(0.62),
+                fontFamily: 'NotoSansLao',
               ),
               prefixIcon: widget.prefixIcon != null
                   ? Padding(
                       padding: const EdgeInsets.only(left: 13, right: 8),
                       child: IconTheme(
-                        data: IconThemeData(
-                          size: 17,
-                          color: _isFocused
-                              ? AppColors.primary.withOpacity(0.8)
-                              : widget.enabled
-                              ? AppColors.mutedForeground
-                              : AppColors.border,
-                        ),
+                        data: IconThemeData(size: 17, color: _iconColor),
                         child: widget.prefixIcon!,
                       ),
                     )
@@ -284,12 +325,7 @@ class _AppTextFieldState extends State<AppTextField>
                   ? Padding(
                       padding: const EdgeInsets.only(right: 13),
                       child: IconTheme(
-                        data: IconThemeData(
-                          size: 17,
-                          color: widget.enabled
-                              ? AppColors.mutedForeground
-                              : AppColors.border,
-                        ),
+                        data: IconThemeData(size: 17, color: _iconColor),
                         child: widget.suffixIcon!,
                       ),
                     )
@@ -305,6 +341,7 @@ class _AppTextFieldState extends State<AppTextField>
               focusedErrorBorder: InputBorder.none,
               disabledBorder: InputBorder.none,
               filled: false,
+              errorStyle: const TextStyle(fontSize: 0, height: 0),
               contentPadding: EdgeInsets.symmetric(
                 horizontal: 14,
                 vertical: widget.maxLines != null && widget.maxLines! > 1
@@ -334,6 +371,7 @@ class _AppTextFieldState extends State<AppTextField>
                     fontSize: 12,
                     color: AppColors.destructive.withOpacity(0.9),
                     fontWeight: FontWeight.w500,
+                    fontFamily: 'NotoSansLao',
                   ),
                 ),
               ),

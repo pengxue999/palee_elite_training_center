@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:palee_elite_training_center/core/utils/receipt_printer.dart';
@@ -15,7 +14,8 @@ import 'package:palee_elite_training_center/screens/registration_screen/widgets/
 import 'package:palee_elite_training_center/screens/registration_screen/widgets/right_panel.dart';
 import 'package:palee_elite_training_center/screens/registration_screen/widgets/student_selection_list.dart';
 import 'package:palee_elite_training_center/widgets/app_toast.dart';
-import 'package:palee_elite_training_center/widgets/mode_tab.dart';
+import 'package:palee_elite_training_center/widgets/app_button.dart';
+import 'package:palee_elite_training_center/widgets/app_dialog.dart';
 import 'package:palee_elite_training_center/widgets/section_card.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/responsive_utils.dart';
@@ -75,34 +75,27 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     'ກວດສອບນັກຮຽນ',
     'ເລືອກວິຊາ',
     'ເລືອກສ່ວນຫຼຸດ',
-    'ຢືນຢັນລົງທະບຽນ',
+    'ກຳນົດສ່ວນຫຼຸດ ແລະ ຄ່າອື່ນໆ',
     'ພິມໃບລົງທະບຽນ',
   ];
 
-  bool _isNewStudent = false;
-
   final _searchCtrl = TextEditingController();
+  final _otherFeeCtrl = TextEditingController();
   String _searchQuery = '';
   Student? _selectedStudent;
-
-  final _newStudentFormKey = GlobalKey<FormState>();
-  final _newFirstNameCtrl = TextEditingController();
-  final _newLastNameCtrl = TextEditingController();
-  final _newPhoneCtrl = TextEditingController();
-  final _newParentPhoneCtrl = TextEditingController();
-  final _newSchoolCtrl = TextEditingController();
-  String _newGender = 'ຊາຍ';
-
-  int? _selectedProvinceId;
-  int? _selectedDistrictId;
 
   String _selectedCategory = '';
   final Set<String> _selectedFeeIds = {};
 
   String? _selectedDiscountId;
   Map<String, String> _scholarshipStatusByFee = {};
-  String _newDormitoryType = 'ຫໍພັກນອກ';
+  int _otherFeeAmount = 0;
   bool _autoRenew = false;
+
+  static const Map<String, int> _dormitoryFees = <String, int>{
+    'ຫໍພັກໃນ': 200000,
+    'ຫໍພັກນອກ': 100000,
+  };
 
   List<FeeModel> get _fees => ref.watch(feeProvider).fees;
   bool get _isLoadingFees => ref.watch(feeProvider).isLoading;
@@ -119,10 +112,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   }
 
   List<StudentModel> get _apiStudents => ref.watch(studentProvider).students;
-  List<ProvinceModel> get _provinces => ref.watch(provinceProvider).provinces;
-  List<DistrictModel> get _filteredDistricts =>
-      ref.watch(districtProvider).filteredDistricts;
-
   List<Student> get _studentsFromApi {
     return _apiStudents
         .map(
@@ -169,7 +158,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
         .toList();
   }
 
-  int get _totalFee => _selectedFeeIds.fold(0, (sum, feeId) {
+  int get _tuitionFee => _selectedFeeIds.fold(0, (sum, feeId) {
     final fee = _fees.firstWhere(
       (f) => f.feeId == feeId,
       orElse: () => const FeeModel(
@@ -184,6 +173,8 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     return sum + fee.fee.toInt();
   });
 
+  int get _totalFee => _tuitionFee + _otherFeeAmount;
+
   int get _selectedDiscountAmount {
     if (_selectedDiscountId == null) return 0;
 
@@ -197,10 +188,13 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       ),
     );
     final discountPercentage = discount.discountAmount.toInt();
-    return ((_totalFee * discountPercentage) / 100).round();
+    return ((_tuitionFee * discountPercentage) / 100).round();
   }
 
-  int get _netFee => _totalFee - _selectedDiscountAmount;
+  int get _netFee {
+    final amount = _totalFee - _selectedDiscountAmount;
+    return amount < 0 ? 0 : amount;
+  }
 
   String get _academicYearFromFees {
     if (_selectedFeeIds.isEmpty) return _currentAcademicYear;
@@ -220,18 +214,36 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     return '';
   }
 
-  List<DistrictModel> get _availableDistricts {
-    if (_selectedProvinceId == null) return [];
-    return _filteredDistricts;
+  int _defaultOtherFeeForStudent(Student? student) {
+    final dormitory = student?.dormitoryName?.trim() ?? '';
+    if (dormitory.contains('ຫໍພັກໃນ')) {
+      return _dormitoryFees['ຫໍພັກໃນ']!;
+    }
+    if (dormitory.contains('ຫໍພັກນອກ')) {
+      return _dormitoryFees['ຫໍພັກນອກ']!;
+    }
+    return 0;
   }
 
-  bool get _isNewStudentFormValid {
-    return _newFirstNameCtrl.text.trim().isNotEmpty &&
-        _newLastNameCtrl.text.trim().isNotEmpty &&
-        _newPhoneCtrl.text.trim().isNotEmpty &&
-        _newSchoolCtrl.text.trim().isNotEmpty &&
-        _selectedProvinceId != null &&
-        _selectedDistrictId != null;
+  String get _otherFeeLabel {
+    final dormitory = _selectedStudent?.dormitoryName?.trim() ?? '';
+    if (dormitory.contains('ຫໍພັກໃນ')) {
+      return 'ຄ່າອື່ນໆ(ຄ່ານ້ຳ, ໄຟ, ຂີ້ເຫຍື້ອ)';
+    }
+    if (dormitory.contains('ຫໍພັກນອກ')) {
+      return 'ຄ່າອື່ນໆ(ຄ່າໄຟ)';
+    }
+    return 'ຄ່າອື່ນໆ';
+  }
+
+  void _applyDefaultOtherFee(Student? student) {
+    final defaultAmount = _defaultOtherFeeForStudent(student);
+    _otherFeeAmount = defaultAmount;
+    _otherFeeCtrl.text = defaultAmount > 0 ? defaultAmount.toString() : '';
+  }
+
+  int _parseAmount(String raw) {
+    return int.tryParse(raw.replaceAll(',', '').trim()) ?? 0;
   }
 
   void _pickStudent(Student s) {
@@ -239,6 +251,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       _selectedStudent = s;
       _currentStep = 2;
       _selectedCategory = '';
+      _applyDefaultOtherFee(s);
     });
   }
 
@@ -273,89 +286,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     });
   }
 
-  void _confirmNewStudent() async {
-    if (!(_newStudentFormKey.currentState?.validate() ?? false)) return;
-    if (_selectedProvinceId == null || _selectedDistrictId == null) {
-      AppToast.warning(context, 'ກະລຸນາເລືອກແຂວງ ແລະ ເມືອງ');
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) =>
-          const Center(child: CircularProgressIndicator()),
-    );
-
-    final request = StudentRequest(
-      studentName: _newFirstNameCtrl.text.trim(),
-      studentLastname: _newLastNameCtrl.text.trim(),
-      gender: _newGender,
-      studentContact: _newPhoneCtrl.text.trim(),
-      parentsContact: _newParentPhoneCtrl.text.trim(),
-      school: _newSchoolCtrl.text.trim(),
-      districtId: _selectedDistrictId!,
-      dormitoryType: _newDormitoryType,
-    );
-
-    final success = await ref
-        .read(studentProvider.notifier)
-        .createStudent(request);
-
-    if (mounted) Navigator.of(context, rootNavigator: true).pop();
-
-    if (success && mounted) {
-      final newStudent = ref.read(studentProvider).selectedStudent;
-      if (newStudent != null) {
-        final student = Student(
-          id: newStudent.studentId ?? '',
-          name: newStudent.studentName,
-          lastname: newStudent.studentLastname,
-          gender: newStudent.gender,
-          phone: newStudent.studentContact,
-          parentsContact: newStudent.parentsContact,
-          school: newStudent.school,
-          districtId: _selectedDistrictId.toString(),
-          districtName: newStudent.districtName,
-          provinceName: newStudent.provinceName,
-          dormitoryId: newStudent.dormitoryName,
-          dormitoryName: newStudent.dormitoryName,
-          academicYear: _currentAcademicYear,
-        );
-        //await SuccessOverlay.show(context, message: 'ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດ');
-        if (mounted) _pickStudent(student);
-      } else {
-        await ref.read(studentProvider.notifier).getStudents();
-        final students = ref.read(studentProvider).students;
-        if (students.isNotEmpty && mounted) {
-          final last = students.last;
-          final student = Student(
-            id: last.studentId ?? '',
-            name: last.studentName,
-            lastname: last.studentLastname,
-            gender: last.gender,
-            phone: last.studentContact,
-            parentsContact: last.parentsContact,
-            school: last.school,
-            districtId: _selectedDistrictId.toString(),
-            districtName: last.districtName,
-            provinceName: last.provinceName,
-            dormitoryId: last.dormitoryName,
-            dormitoryName: last.dormitoryName,
-            academicYear: _currentAcademicYear,
-          );
-          await SuccessOverlay.show(
-            context,
-            message: 'ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດ',
-          );
-          if (mounted) _pickStudent(student);
-        }
-      }
-    } else if (mounted) {
-      AppToast.error(context, 'ບັນທຶກຂໍ້ມູນບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່');
-    }
-  }
-
   void _handleClear() {
     setState(() {
       _selectedStudent = null;
@@ -365,18 +295,10 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       _selectedCategory = '';
       _autoRenew = false;
       _currentStep = 1;
-      _isNewStudent = false;
-      _newFirstNameCtrl.clear();
-      _newLastNameCtrl.clear();
-      _newPhoneCtrl.clear();
-      _newParentPhoneCtrl.clear();
-      _newSchoolCtrl.clear();
-      _newGender = 'ຊາຍ';
-      _newDormitoryType = 'ຫໍພັກນອກ';
-      _selectedProvinceId = null;
-      _selectedDistrictId = null;
       _selectedDiscountId = null;
       _scholarshipStatusByFee = {};
+      _otherFeeAmount = 0;
+      _otherFeeCtrl.clear();
     });
   }
 
@@ -422,23 +344,28 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
           .toList();
       final studentFullName =
           _selectedStudent?.fullName ?? lastReg.studentFullName;
+      final tuition = _tuitionFee;
+      final otherFeeLabel = _otherFeeLabel;
+      final otherFeeAmount = _otherFeeAmount;
       final total = _totalFee;
       final discount = _selectedDiscountAmount;
       final net = _netFee;
 
-      //await SuccessOverlay.show(context, message: 'ບັນທຶກການລົງທະບຽນສຳເລັດ');
       if (mounted) {
-        _handleClear();
         await showRegistrationPrintDialog(
           context: context,
           registrationId: lastReg.registrationId,
           registrationDate: lastReg.registrationDate,
           studentName: studentFullName,
           selectedFees: selectedFeesList,
+          tuitionFee: tuition,
+          dormitoryLabel: otherFeeLabel,
+          dormitoryFee: otherFeeAmount,
           totalFee: total,
           discountAmount: discount,
           netFee: net,
         );
+        _handleClear();
         ref.read(registrationProvider.notifier).getRegistrations();
       }
     } else if (mounted) {
@@ -449,37 +376,32 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     }
   }
 
-  void _onNewStudentFormChanged() {
-    if (mounted) setState(() {});
+  Future<void> _openAddStudentDialog() async {
+    final createdStudent = await showDialog<Student>(
+      context: context,
+      builder: (dialogContext) =>
+          _AddStudentDialog(academicYear: _currentAcademicYear),
+    );
+
+    if (createdStudent != null && mounted) {
+      _pickStudent(createdStudent);
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    _newFirstNameCtrl.addListener(_onNewStudentFormChanged);
-    _newLastNameCtrl.addListener(_onNewStudentFormChanged);
-    _newPhoneCtrl.addListener(_onNewStudentFormChanged);
-    _newSchoolCtrl.addListener(_onNewStudentFormChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(studentProvider.notifier).getStudents();
       ref.read(feeProvider.notifier).getFees();
       ref.read(discountProvider.notifier).getDiscounts();
-      ref.read(provinceProvider.notifier).getProvinces();
     });
   }
 
   @override
   void dispose() {
-    _newFirstNameCtrl.removeListener(_onNewStudentFormChanged);
-    _newLastNameCtrl.removeListener(_onNewStudentFormChanged);
-    _newPhoneCtrl.removeListener(_onNewStudentFormChanged);
-    _newSchoolCtrl.removeListener(_onNewStudentFormChanged);
     _searchCtrl.dispose();
-    _newFirstNameCtrl.dispose();
-    _newLastNameCtrl.dispose();
-    _newPhoneCtrl.dispose();
-    _newParentPhoneCtrl.dispose();
-    _newSchoolCtrl.dispose();
+    _otherFeeCtrl.dispose();
     super.dispose();
   }
 
@@ -509,7 +431,8 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                   onRemove: _toggleFee,
                   academicYear: _academicYearFromFees,
                   registrationDate: _fmtDate(DateTime.now()),
-                  studentName: _selectedStudent?.name,
+                  studentName: _selectedStudent?.fullName,
+                  tuitionFee: _tuitionFee,
                   totalFee: _totalFee,
                   discount: _selectedDiscountAmount,
                   netFee: _netFee,
@@ -517,6 +440,12 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                   selectedDiscountId: _selectedDiscountId,
                   onDiscountChanged: (v) =>
                       setState(() => _selectedDiscountId = v),
+                  otherFee: _otherFeeAmount,
+                  otherFeeLabel: _otherFeeLabel,
+                  otherFeeController: _otherFeeCtrl,
+                  onOtherFeeChanged: (value) => setState(() {
+                    _otherFeeAmount = _parseAmount(value);
+                  }),
                   scholarshipStatusByFee: _scholarshipStatusByFee,
                   onScholarshipChanged: (feeId, status) =>
                       _setScholarshipStatus(feeId, status),
@@ -537,21 +466,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _Step1Section(
-                        isNewStudent: _isNewStudent,
-                        onModeChanged: (v) => setState(() {
-                          _isNewStudent = v;
-                          _searchQuery = '';
-                          _searchCtrl.clear();
-                          _newFirstNameCtrl.clear();
-                          _newLastNameCtrl.clear();
-                          _newPhoneCtrl.clear();
-                          _newParentPhoneCtrl.clear();
-                          _newSchoolCtrl.clear();
-                          _newGender = 'ຊາຍ';
-                          _newDormitoryType = 'ຫໍພັກນອກ';
-                          _selectedProvinceId = null;
-                          _selectedDistrictId = null;
-                        }),
                         currentStep: _currentStep,
                         searchQuery: _searchQuery,
                         searchCtrl: _searchCtrl,
@@ -560,42 +474,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                         onQueryChanged: (v) => setState(() => _searchQuery = v),
                         onPickStudent: _pickStudent,
                         onClearStudent: _handleClear,
-                        formKey: _newStudentFormKey,
-                        firstNameCtrl: _newFirstNameCtrl,
-                        lastNameCtrl: _newLastNameCtrl,
-                        phoneCtrl: _newPhoneCtrl,
-                        parentPhoneCtrl: _newParentPhoneCtrl,
-                        schoolCtrl: _newSchoolCtrl,
-                        gender: _newGender,
-                        onGenderChanged: (v) => setState(() => _newGender = v!),
-                        onConfirmNewStudent: _confirmNewStudent,
-                        isNewStudentFormValid: _isNewStudentFormValid,
-                        provinces: _provinces,
-                        selectedProvinceId: _selectedProvinceId,
-                        selectedDistrictId: _selectedDistrictId,
-                        availableDistricts: _availableDistricts,
-                        onProvinceChanged: (v) async {
-                          setState(() {
-                            _selectedProvinceId = v;
-                            _selectedDistrictId = null;
-                          });
-                          if (v != null) {
-                            await ref
-                                .read(districtProvider.notifier)
-                                .getDistrictsByProvince(v);
-                          }
-                        },
-                        onDistrictChanged: (v) =>
-                            setState(() => _selectedDistrictId = v),
-                        isLoadingProvinces: ref
-                            .watch(provinceProvider)
-                            .isLoading,
-                        isLoadingDistricts: ref
-                            .watch(districtProvider)
-                            .isLoading,
-                        dormitoryType: _newDormitoryType,
-                        onDormitoryChanged: (v) =>
-                            setState(() => _newDormitoryType = v ?? 'ຫໍພັກນອກ'),
+                        onAddStudent: _openAddStudentDialog,
                       ),
                       const SizedBox(height: 16),
                       SelectSubjectSection(
@@ -726,119 +605,6 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
-
-          // Container(
-          //   width: 1,
-          //   height: 32,
-          //   margin: const EdgeInsets.symmetric(horizontal: 20),
-          //   color: const Color(0xFFE2E8F0),
-          // ),
-
-          // Expanded(
-          //   child: SingleChildScrollView(
-          //     scrollDirection: Axis.horizontal,
-          //     child: Row(
-          //       children: List.generate(steps.length, (i) {
-          //         final n = i + 1;
-          //         final active = n == currentStep;
-          //         final done = n < currentStep;
-          //         return Row(
-          //           mainAxisSize: MainAxisSize.min,
-          //           children: [
-          //             if (i > 0)
-          //               Container(
-          //                 width: 28,
-          //                 height: 2,
-          //                 margin: const EdgeInsets.symmetric(horizontal: 4),
-          //                 decoration: BoxDecoration(
-          //                   borderRadius: BorderRadius.circular(2),
-          //                   color: done
-          //                       ? AppColors.primary
-          //                       : const Color(0xFFE2E8F0),
-          //                 ),
-          //               ),
-          //             AnimatedContainer(
-          //               duration: const Duration(milliseconds: 200),
-          //               padding: EdgeInsets.symmetric(
-          //                 horizontal: active ? 12 : 8,
-          //                 vertical: 6,
-          //               ),
-          //               decoration: BoxDecoration(
-          //                 color: active
-          //                     ? AppColors.primary
-          //                     : done
-          //                     ? AppColors.primaryLight
-          //                     : Colors.transparent,
-          //                 borderRadius: BorderRadius.circular(22),
-          //                 boxShadow: active
-          //                     ? [
-          //                         BoxShadow(
-          //                           color: AppColors.primary.withValues(
-          //                             alpha: 0.28,
-          //                           ),
-          //                           blurRadius: 10,
-          //                           offset: const Offset(0, 3),
-          //                         ),
-          //                       ]
-          //                     : null,
-          //               ),
-          //               child: Row(
-          //                 mainAxisSize: MainAxisSize.min,
-          //                 children: [
-          //                   Container(
-          //                     width: 22,
-          //                     height: 22,
-          //                     decoration: BoxDecoration(
-          //                       color: active
-          //                           ? Colors.white
-          //                           : done
-          //                           ? AppColors.primary
-          //                           : const Color(0xFFE2E8F0),
-          //                       shape: BoxShape.circle,
-          //                     ),
-          //                     child: Center(
-          //                       child: done
-          //                           ? const Icon(
-          //                               Icons.check_rounded,
-          //                               size: 13,
-          //                               color: Colors.white,
-          //                             )
-          //                           : Text(
-          //                               '$n',
-          //                               style: TextStyle(
-          //                                 fontSize: 11,
-          //                                 fontWeight: FontWeight.w700,
-          //                                 color: active
-          //                                     ? AppColors.primary
-          //                                     : const Color(0xFF94A3B8),
-          //                               ),
-          //                             ),
-          //                     ),
-          //                   ),
-          //                   const SizedBox(width: 7),
-          //                   Text(
-          //                     steps[i],
-          //                     style: TextStyle(
-          //                       fontSize: 13,
-          //                       fontWeight: active
-          //                           ? FontWeight.w700
-          //                           : FontWeight.w500,
-          //                       color: active
-          //                           ? Colors.white
-          //                           : done
-          //                           ? AppColors.primary
-          //                           : const Color(0xFF94A3B8),
-          //                     ),
-          //                   ),
-          //                 ],
-          //               ),
-          //             ),
-          //           ],
-          //         );
-          //       }),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
     );
@@ -846,8 +612,6 @@ class _TopBar extends StatelessWidget {
 }
 
 class _Step1Section extends StatelessWidget {
-  final bool isNewStudent;
-  final ValueChanged<bool> onModeChanged;
   final int currentStep;
   final String searchQuery;
   final TextEditingController searchCtrl;
@@ -856,30 +620,9 @@ class _Step1Section extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<Student> onPickStudent;
   final VoidCallback onClearStudent;
-  final GlobalKey<FormState> formKey;
-  final TextEditingController firstNameCtrl;
-  final TextEditingController lastNameCtrl;
-  final TextEditingController phoneCtrl;
-  final TextEditingController parentPhoneCtrl;
-  final TextEditingController schoolCtrl;
-  final String gender;
-  final ValueChanged<String?> onGenderChanged;
-  final VoidCallback onConfirmNewStudent;
-  final bool isNewStudentFormValid;
-  final List<ProvinceModel> provinces;
-  final int? selectedProvinceId;
-  final int? selectedDistrictId;
-  final List<DistrictModel> availableDistricts;
-  final ValueChanged<int?> onProvinceChanged;
-  final ValueChanged<int?> onDistrictChanged;
-  final bool isLoadingProvinces;
-  final bool isLoadingDistricts;
-  final String dormitoryType;
-  final ValueChanged<String?> onDormitoryChanged;
+  final VoidCallback onAddStudent;
 
   const _Step1Section({
-    required this.isNewStudent,
-    required this.onModeChanged,
     required this.currentStep,
     required this.searchQuery,
     required this.searchCtrl,
@@ -888,26 +631,7 @@ class _Step1Section extends StatelessWidget {
     required this.onQueryChanged,
     required this.onPickStudent,
     required this.onClearStudent,
-    required this.formKey,
-    required this.firstNameCtrl,
-    required this.lastNameCtrl,
-    required this.phoneCtrl,
-    required this.parentPhoneCtrl,
-    required this.schoolCtrl,
-    required this.gender,
-    required this.onGenderChanged,
-    required this.onConfirmNewStudent,
-    required this.isNewStudentFormValid,
-    required this.provinces,
-    required this.selectedProvinceId,
-    required this.selectedDistrictId,
-    required this.availableDistricts,
-    required this.onProvinceChanged,
-    required this.onDistrictChanged,
-    required this.isLoadingProvinces,
-    required this.isLoadingDistricts,
-    required this.dormitoryType,
-    required this.onDormitoryChanged,
+    required this.onAddStudent,
   });
 
   @override
@@ -920,70 +644,17 @@ class _Step1Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.muted, // surface/muted background
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(4),
-            child: Row(
-              children: [
-                ModeTab(
-                  label: 'ນັກຮຽນເກົ່າ',
-                  icon: Icons.search_sharp,
-                  active: !isNewStudent,
-                  activeColor: AppColors.primary,
-                  onTap: () => onModeChanged(false),
-                ),
-                ModeTab(
-                  label: 'ນັກຮຽນໃໝ່',
-                  icon: Icons.person_add_rounded,
-                  active: isNewStudent,
-                  activeColor: AppColors.primary,
-                  onTap: () => onModeChanged(true),
-                ),
-              ],
-            ),
+          _ExistingStudentSearch(
+            key: const ValueKey('existing'),
+            searchQuery: searchQuery,
+            searchCtrl: searchCtrl,
+            students: students,
+            selectedStudent: selectedStudent,
+            onQueryChanged: onQueryChanged,
+            onPickStudent: onPickStudent,
+            onClearStudent: onClearStudent,
+            onAddStudent: onAddStudent,
           ),
-
-          const SizedBox(height: 16),
-
-          isNewStudent
-              ? NewStudentForm(
-                  key: const ValueKey('new'),
-                  formKey: formKey,
-                  firstNameCtrl: firstNameCtrl,
-                  lastNameCtrl: lastNameCtrl,
-                  phoneCtrl: phoneCtrl,
-                  parentPhoneCtrl: parentPhoneCtrl,
-                  schoolCtrl: schoolCtrl,
-                  gender: gender,
-                  onGenderChanged: onGenderChanged,
-                  onConfirm: onConfirmNewStudent,
-                  isFormValid: isNewStudentFormValid,
-                  selectedStudent: selectedStudent,
-                  onClear: onClearStudent,
-                  provinces: provinces,
-                  selectedProvinceId: selectedProvinceId,
-                  selectedDistrictId: selectedDistrictId,
-                  availableDistricts: availableDistricts,
-                  onProvinceChanged: onProvinceChanged,
-                  onDistrictChanged: onDistrictChanged,
-                  isLoadingProvinces: isLoadingProvinces,
-                  isLoadingDistricts: isLoadingDistricts,
-                  dormitoryType: dormitoryType,
-                  onDormitoryChanged: onDormitoryChanged,
-                )
-              : _ExistingStudentSearch(
-                  key: const ValueKey('existing'),
-                  searchQuery: searchQuery,
-                  searchCtrl: searchCtrl,
-                  students: students,
-                  selectedStudent: selectedStudent,
-                  onQueryChanged: onQueryChanged,
-                  onPickStudent: onPickStudent,
-                  onClearStudent: onClearStudent,
-                ),
         ],
       ),
     );
@@ -998,6 +669,7 @@ class _ExistingStudentSearch extends StatelessWidget {
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<Student> onPickStudent;
   final VoidCallback onClearStudent;
+  final VoidCallback onAddStudent;
 
   const _ExistingStudentSearch({
     super.key,
@@ -1008,6 +680,7 @@ class _ExistingStudentSearch extends StatelessWidget {
     required this.onQueryChanged,
     required this.onPickStudent,
     required this.onClearStudent,
+    required this.onAddStudent,
   });
 
   @override
@@ -1031,6 +704,11 @@ class _ExistingStudentSearch extends StatelessWidget {
           searchQuery: searchQuery,
           searchController: searchCtrl,
           onSearchChanged: onQueryChanged,
+          action: AppButton(
+            label: 'ເພີ່ມນັກຮຽນ',
+            icon: Icons.person_add_rounded,
+            onPressed: onAddStudent,
+          ),
           onSelect: (item) {
             final student = students.firstWhere((s) => s.id == item.id);
             onPickStudent(student);
@@ -1048,6 +726,227 @@ class _ExistingStudentSearch extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _AddStudentDialog extends ConsumerStatefulWidget {
+  final String academicYear;
+
+  const _AddStudentDialog({required this.academicYear});
+
+  @override
+  ConsumerState<_AddStudentDialog> createState() => _AddStudentDialogState();
+}
+
+class _AddStudentDialogState extends ConsumerState<_AddStudentDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _parentPhoneCtrl = TextEditingController();
+  final _schoolCtrl = TextEditingController();
+
+  String _gender = 'ຊາຍ';
+  int? _selectedProvinceId;
+  int? _selectedDistrictId;
+  String _dormitoryType = 'ຫໍພັກນອກ';
+  bool _autoValidate = false;
+  bool _isSaving = false;
+
+  List<ProvinceModel> get _provinces => ref.watch(provinceProvider).provinces;
+  List<DistrictModel> get _districts =>
+      ref.watch(districtProvider).filteredDistricts;
+  bool get _isLoadingProvinces => ref.watch(provinceProvider).isLoading;
+  bool get _isLoadingDistricts => ref.watch(districtProvider).isLoading;
+
+  bool get _isFormValid {
+    return _firstNameCtrl.text.trim().isNotEmpty &&
+        _lastNameCtrl.text.trim().isNotEmpty &&
+        _phoneCtrl.text.trim().isNotEmpty &&
+        _schoolCtrl.text.trim().isNotEmpty &&
+        _selectedProvinceId != null &&
+        _selectedDistrictId != null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameCtrl.addListener(_onFormChanged);
+    _lastNameCtrl.addListener(_onFormChanged);
+    _phoneCtrl.addListener(_onFormChanged);
+    _parentPhoneCtrl.addListener(_onFormChanged);
+    _schoolCtrl.addListener(_onFormChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(provinceProvider.notifier).getProvinces();
+    });
+  }
+
+  @override
+  void dispose() {
+    _firstNameCtrl.removeListener(_onFormChanged);
+    _lastNameCtrl.removeListener(_onFormChanged);
+    _phoneCtrl.removeListener(_onFormChanged);
+    _parentPhoneCtrl.removeListener(_onFormChanged);
+    _schoolCtrl.removeListener(_onFormChanged);
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _parentPhoneCtrl.dispose();
+    _schoolCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _autoValidate = true;
+    });
+
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_selectedProvinceId == null || _selectedDistrictId == null) {
+      AppToast.warning(context, 'ກະລຸນາເລືອກແຂວງ ແລະ ເມືອງ');
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final request = StudentRequest(
+      studentName: _firstNameCtrl.text.trim(),
+      studentLastname: _lastNameCtrl.text.trim(),
+      gender: _gender,
+      studentContact: _phoneCtrl.text.trim(),
+      parentsContact: _parentPhoneCtrl.text.trim(),
+      school: _schoolCtrl.text.trim(),
+      districtId: _selectedDistrictId!,
+      dormitoryType: _dormitoryType,
+    );
+
+    final success = await ref
+        .read(studentProvider.notifier)
+        .createStudent(request);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSaving = false;
+    });
+
+    if (!success) {
+      final error =
+          ref.read(studentProvider).error ??
+          'ບັນທຶກຂໍ້ມູນບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່';
+      AppToast.error(context, error);
+      return;
+    }
+
+    StudentModel? created = ref.read(studentProvider).selectedStudent;
+    created ??= ref.read(studentProvider).students.lastOrNull;
+    if (created == null) {
+      await ref.read(studentProvider.notifier).getStudents();
+      if (!mounted) return;
+      created = ref.read(studentProvider).students.lastOrNull;
+    }
+
+    if (created == null || !mounted) {
+      AppToast.error(context, 'ບໍ່ສາມາດດຶງຂໍ້ມູນນັກຮຽນໃໝ່ໄດ້');
+      return;
+    }
+
+    await SuccessOverlay.show(context, message: 'ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດ');
+    if (!mounted) return;
+
+    Navigator.of(context).pop(
+      Student(
+        id: created.studentId ?? '',
+        name: created.studentName,
+        lastname: created.studentLastname,
+        gender: created.gender,
+        phone: created.studentContact,
+        parentsContact: created.parentsContact,
+        school: created.school,
+        districtId: _selectedDistrictId.toString(),
+        districtName: created.districtName,
+        provinceName: created.provinceName,
+        dormitoryId: created.dormitoryName,
+        dormitoryName: created.dormitoryName,
+        academicYear: widget.academicYear,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDialog(
+      title: 'ເພີ່ມນັກຮຽນໃໝ່',
+      size: AppDialogSize.large,
+      onClose: () => Navigator.of(context).pop(),
+      footer: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppButton(
+            label: 'ຍົກເລີກ',
+            variant: AppButtonVariant.ghost,
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 12),
+          AppButton(
+            label: 'ບັນທຶກ',
+            icon: Icons.save_rounded,
+            isLoading: _isSaving,
+            onPressed: _isSaving ? null : _save,
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        autovalidateMode: _autoValidate
+            ? AutovalidateMode.always
+            : AutovalidateMode.disabled,
+        child: NewStudentForm(
+          formKey: _formKey,
+          firstNameCtrl: _firstNameCtrl,
+          lastNameCtrl: _lastNameCtrl,
+          phoneCtrl: _phoneCtrl,
+          parentPhoneCtrl: _parentPhoneCtrl,
+          schoolCtrl: _schoolCtrl,
+          gender: _gender,
+          onGenderChanged: (value) => setState(() => _gender = value ?? 'ຊາຍ'),
+          onConfirm: _save,
+          isFormValid: _isFormValid,
+          selectedStudent: null,
+          onClear: () {},
+          provinces: _provinces,
+          selectedProvinceId: _selectedProvinceId,
+          selectedDistrictId: _selectedDistrictId,
+          availableDistricts: _districts,
+          onProvinceChanged: (value) async {
+            setState(() {
+              _selectedProvinceId = value;
+              _selectedDistrictId = null;
+            });
+            if (value != null) {
+              await ref
+                  .read(districtProvider.notifier)
+                  .getDistrictsByProvince(value);
+            }
+          },
+          onDistrictChanged: (value) =>
+              setState(() => _selectedDistrictId = value),
+          isLoadingProvinces: _isLoadingProvinces,
+          isLoadingDistricts: _isLoadingDistricts,
+          dormitoryType: _dormitoryType,
+          onDormitoryChanged: (value) =>
+              setState(() => _dormitoryType = value ?? 'ຫໍພັກນອກ'),
+          showSubmitButton: false,
+          wrapInForm: false,
+        ),
+      ),
     );
   }
 }

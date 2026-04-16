@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../core/utils/tuition_payment_receipt_printer.dart';
 import '../../../models/registration_model.dart';
 import '../../../models/tuition_payment_model.dart';
 import '../../../providers/tuition_payment_provider.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/success_overlay.dart';
 
 class TuitionPaymentDialog extends ConsumerStatefulWidget {
   final RegistrationModel registration;
@@ -87,8 +89,7 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
           .read(tuitionPaymentProvider.notifier)
           .getPaymentsByRegistration(widget.registration.registrationId)
           .timeout(const Duration(seconds: 10));
-    } catch (e) {
-    }
+    } catch (_) {}
   }
 
   Future<void> _submitPayment() async {
@@ -118,26 +119,33 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
       _error = null;
     });
 
+    final dialogNavigator = Navigator.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+
     final request = TuitionPaymentRequest(
       registrationId: widget.registration.registrationId,
       paidAmount: amount,
       paymentMethod: _paymentMethod,
     );
 
-    final ok = await ref
+    final createdPayment = await ref
         .read(tuitionPaymentProvider.notifier)
         .createPayment(request);
 
     if (mounted) {
       setState(() => _isSaving = false);
-      if (ok) {
-        Navigator.of(context).pop();
+      if (createdPayment != null) {
+        await SuccessOverlay.show(
+          rootNavigator.context,
+          message: 'ບັນທຶກການຈ່າຍເງິນສຳເລັດ',
+        );
+        if (!mounted || !rootNavigator.context.mounted) return;
+
+        dialogNavigator.pop();
         widget.onPaymentComplete?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('ບັນທຶກການຈ່າຍເງິນສຳເລັດ'),
-            backgroundColor: AppColors.success,
-          ),
+        await showTuitionPaymentPrintDialog(
+          context: rootNavigator.context,
+          paymentId: createdPayment.tuitionPaymentId,
         );
       } else {
         final err = ref.read(tuitionPaymentProvider).error;
@@ -200,7 +208,7 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border),
               ),
@@ -337,9 +345,11 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
+                  color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.warning.withOpacity(0.2)),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -374,7 +384,7 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -436,7 +446,7 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
@@ -472,14 +482,14 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
       decoration: BoxDecoration(
         color: AppColors.destructiveLight,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.destructive.withOpacity(0.2)),
+        border: Border.all(color: AppColors.destructive.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.destructive.withOpacity(0.1),
+              color: AppColors.destructive.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
