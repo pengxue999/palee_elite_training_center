@@ -1,0 +1,38 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../services/report_service.dart';
+import '../../widgets/app_toast.dart';
+import 'receipt_printer.dart';
+
+final ReportService _reportService = ReportService();
+
+Future<void> showPopularSubjectReportPrintDialog({
+  required BuildContext context,
+  String? academicId,
+  VoidCallback? onPreviewReady,
+}) async {
+  try {
+    final pdfBytes = await _reportService.createPopularSubjectsReportPdf(
+      academicId: academicId,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    onPreviewReady?.call();
+
+    await showPdfPrintDialog(
+      context: context,
+      pdfBytes: pdfBytes,
+      documentId: DateFormat('yyyyMMdd_HHmmss').format(DateTime.now()),
+      title: 'ພິມລາຍງານວິຊາຍອດນິຍົມ',
+      fileNamePrefix: 'popular_subjects_report',
+    );
+  } catch (e) {
+    if (context.mounted) {
+      AppToast.error(context, 'ບໍ່ສາມາດສ້າງ PDF ໄດ້: $e');
+    }
+  }
+}

@@ -239,8 +239,6 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
         Padding(
           padding: const EdgeInsets.all(24),
           child: AppDataTable<TeacherModel>(
-            title: 'ຂໍ້ມູນອາຈານ',
-            subtitle: 'ທັງໝົດ ${teacherState.teachers.length} ຄົນ',
             data: isLoading ? _getMockTeachers() : teacherState.teachers,
             columns: columns,
             onAdd: _openAdd,

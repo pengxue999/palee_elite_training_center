@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+import '../../core/constants/fixed_donation_categories.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/donation_report_printer.dart';
 import '../../core/utils/format_utils.dart';
-import '../../core/utils/csv_export_helper.dart';
+import '../../core/utils/report_export_action_helper.dart';
 import '../../models/donation_model.dart';
 import '../../models/donor_model.dart';
-import '../../models/donation_category_model.dart';
 import '../../providers/donation_provider.dart';
 import '../../providers/donor_provider.dart';
-import '../../providers/donation_category_provider.dart';
+import '../../services/report_service.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_button.dart';
@@ -18,6 +17,7 @@ import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/empty_widget.dart';
+import '../../widgets/print_preparation_overlay.dart';
 
 class ReportDonationScreen extends ConsumerStatefulWidget {
   const ReportDonationScreen({super.key});
@@ -28,12 +28,13 @@ class ReportDonationScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
-  String _activeTab = 'overview';
   String? _selectedDonorId;
-  int? _selectedCategoryId;
+  String? _selectedCategory;
   String? _selectedYear;
   final List<String> _availableYears = [];
+  final ReportService _reportService = ReportService();
   bool _isExporting = false;
+  bool _isPreparingPdfPrint = false;
 
   @override
   void initState() {
@@ -47,7 +48,6 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
     await Future.wait([
       ref.read(donationProvider.notifier).getDonations(),
       ref.read(donorProvider.notifier).getDonors(),
-      ref.read(donationCategoryProvider.notifier).getDonationCategories(),
     ]);
     _generateAvailableYears();
   }
@@ -86,8 +86,8 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
       if (_selectedDonorId != null && d.donorId != _selectedDonorId) {
         return false;
       }
-      if (_selectedCategoryId != null &&
-          d.donationCategoryId != _selectedCategoryId) {
+      if (_selectedCategory != null &&
+          d.donationCategory != _selectedCategory) {
         return false;
       }
       if (_selectedYear != null) {
@@ -115,61 +115,67 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
     setState(() => _isExporting = true);
 
     try {
-      final data = filteredDonations
-          .map(
-            (d) => {
-              'donationId': d.donationId.toString(),
-              'donorName': d.donorFullName,
-              'category': d.donationCategory,
-              'donationName': d.donationName,
-              'amount': d.amount.toString(),
-              'unit': d.unitName ?? '-',
-              'date': d.donationDate,
-              'description': d.description ?? '-',
-            },
-          )
-          .toList();
-
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final filename = 'donation_report_$timestamp.csv';
-
-      await CsvExportHelper.exportToCsv(
-        headers: [
-          'ລະຫັດ',
-          'ຜູ້ບໍລິຈາກ',
-          'ປະເພດ',
-          'ຊື່ການບໍລິຈາກ',
-          'ຈຳນວນເງິນ',
-          'ຫົວໜ່ວຍ',
-          'ວັນທີ',
-          'ລາຍລະອຽດ',
-        ],
-        data: data,
-        filename: filename,
-        columnMapping: {
-          'ລະຫັດ': 'donationId',
-          'ຜູ້ບໍລິຈາກ': 'donorName',
-          'ປະເພດ': 'category',
-          'ຊື່ການບໍລິຈາກ': 'donationName',
-          'ຈຳນວນເງິນ': 'amount',
-          'ຫົວໜ່ວຍ': 'unit',
-          'ວັນທີ': 'date',
-          'ລາຍລະອຽດ': 'description',
+      await ReportExportActionHelper.exportReport(
+        context: context,
+        reportTitle: 'ລາຍງານການບໍລິຈາກ',
+        requestExport: (format) async {
+          final exportResponse = await _reportService.exportDonationReport(
+            donorId: _selectedDonorId,
+            donationCategory: _selectedCategory,
+            year: int.tryParse(_selectedYear ?? ''),
+            format: format,
+          );
+          return exportResponse.data;
         },
       );
-
-      AppToast.success(context, 'Export CSV ສຳເລັດ');
     } catch (e) {
-      AppToast.error(context, 'Export ບໍ່ສຳເລັດ: $e');
+      if (mounted) {
+        AppToast.error(context, 'Export ບໍ່ສຳເລັດ: $e');
+      }
     } finally {
-      setState(() => _isExporting = false);
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
+  Future<void> _handlePdfPrint() async {
+    final filteredDonations = _getFilteredDonations();
+    if (_isPreparingPdfPrint || filteredDonations.isEmpty) {
+      return;
+    }
+
+    setState(() => _isPreparingPdfPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showDonationReportPrintDialog(
+        context: context,
+        donorId: _selectedDonorId,
+        donationCategory: _selectedCategory,
+        year: int.tryParse(_selectedYear ?? ''),
+        onPreviewReady: () {
+          if (mounted && _isPreparingPdfPrint) {
+            setState(() => _isPreparingPdfPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPdfPrint) {
+        setState(() => _isPreparingPdfPrint = false);
+      }
     }
   }
 
   void _clearFilters() {
     setState(() {
       _selectedDonorId = null;
-      _selectedCategoryId = null;
+      _selectedCategory = null;
       _selectedYear = _availableYears.isNotEmpty ? _availableYears.first : null;
     });
   }
@@ -182,39 +188,50 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
   Widget build(BuildContext context) {
     final donationState = ref.watch(donationProvider);
     final donors = ref.watch(donorProvider).donors;
-    final categories = ref.watch(donationCategoryProvider).donationCategories;
     final filteredDonations = _getFilteredDonations();
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: RefreshIndicator(
-        onRefresh: _loadInitialData,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFilters(donors, categories),
-            Expanded(
-              child: donationState.isLoading
-                  ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
-                  : filteredDonations.isEmpty
-                  ? EmptyWidget(
-                      title: 'ບໍ່ມີຂໍ້ມູນ',
-                      subtitle: 'ບໍ່ພົບຂໍ້ມູນການບໍລິຈາກຕາມທີ່ກຳນົດ',
-                      icon: Icons.volunteer_activism_outlined,
-                      onAction: _clearFilters,
-                    )
-                  : _buildListTab(filteredDonations),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          body: RefreshIndicator(
+            onRefresh: _loadInitialData,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFilters(donors, hasData: filteredDonations.isNotEmpty),
+                Expanded(
+                  child: donationState.isLoading
+                      ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
+                      : filteredDonations.isEmpty
+                      ? EmptyWidget(
+                          title: 'ບໍ່ມີຂໍ້ມູນ',
+                          subtitle: 'ບໍ່ພົບຂໍ້ມູນການບໍລິຈາກຕາມທີ່ກຳນົດ',
+                          icon: Icons.volunteer_activism_outlined,
+                          onAction: _clearFilters,
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: _buildListTab(filteredDonations),
+                        ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (_isPreparingPdfPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.print_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານການບໍລິຈາກ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
+      ],
     );
   }
 
-  Widget _buildFilters(
-    List<DonorModel> donors,
-    List<DonationCategoryModel> categories,
-  ) {
+  Widget _buildFilters(List<DonorModel> donors, {required bool hasData}) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,36 +308,43 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
               const SizedBox(width: 12),
               SizedBox(
                 width: 180,
-                child: AppDropdown<int>(
-                  value: _selectedCategoryId,
+                child: AppDropdown<String>(
+                  value: _selectedCategory,
                   items: [
                     const DropdownMenuItem(
                       value: null,
                       child: Text('ທັງໝົດປະເພດ'),
                     ),
-                    ...categories.map((cat) {
+                    ...fixedDonationCategories.map((category) {
                       return DropdownMenuItem(
-                        value: cat.donationCategoryId,
-                        child: Text(
-                          cat.donationCategory,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        value: category,
+                        child: Text(category, overflow: TextOverflow.ellipsis),
                       );
                     }),
                   ],
                   onChanged: (value) {
-                    setState(() => _selectedCategoryId = value);
+                    setState(() => _selectedCategory = value);
                   },
                   hint: 'ປະເພດການບໍລິຈາກ',
                 ),
               ),
               const Spacer(),
               AppButton(
-                label: 'Export CSV',
+                label: _isExporting ? 'ກຳລັງບັນທຶກ...' : 'ສົ່ງອອກເປັນ Excel',
                 icon: Icons.download_rounded,
+                variant: AppButtonVariant.success,
+                onPressed: _isExporting || _isPreparingPdfPrint || !hasData
+                    ? null
+                    : _handleExport,
+              ),
+              const SizedBox(width: 12),
+              AppButton(
+                label: _isPreparingPdfPrint ? 'ກຳລັງ ພິມ...' : 'ພິມ PDF',
+                icon: Icons.print_rounded,
                 variant: AppButtonVariant.primary,
-                isLoading: _isExporting,
-                onPressed: _handleExport,
+                onPressed: _isExporting || _isPreparingPdfPrint || !hasData
+                    ? null
+                    : _handlePdfPrint,
               ),
             ],
           ),
@@ -405,8 +429,6 @@ class _ReportDonationScreenState extends ConsumerState<ReportDonationScreen> {
     ];
 
     return AppDataTable<DonationModel>(
-      title: 'ລາຍການບໍລິຈາກ',
-      subtitle: 'ທັງໝົດ ${donations.length} ລາຍການ',
       data: donations,
       columns: columns,
       showActions: false,

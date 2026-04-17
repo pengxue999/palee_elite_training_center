@@ -242,8 +242,6 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
             children: [
               Expanded(
                 child: AppDataTable<UserModel>(
-                  title: 'ຜູ້ໃຊ້ລະບົບ',
-                  subtitle: 'ທັງໝົດ ${userState.users.length} ຄົນ',
                   data: userState.isLoading ? _getMockUsers() : userState.users,
                   columns: columns,
                   onAdd: _openAdd,

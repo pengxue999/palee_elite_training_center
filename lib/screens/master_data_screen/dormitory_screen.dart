@@ -200,8 +200,6 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
             children: [
               Expanded(
                 child: AppDataTable<DormitoryModel>(
-                  title: 'ຂໍ້ມູນຫໍພັກ',
-                  subtitle: 'ທັງໝົດ ${state.dormitories.length} ຫ້ອງ',
                   data: isLoading ? _getMockDormitories() : state.dormitories,
                   columns: columns,
                   onAdd: _openAdd,

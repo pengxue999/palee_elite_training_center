@@ -172,8 +172,6 @@ class _SubjectCategoriesScreenState
         Padding(
           padding: const EdgeInsets.all(24),
           child: AppDataTable<SubjectCategoryModel>(
-            title: 'ໝວດວິຊາ',
-            subtitle: 'ທັງໝົດ ${items.length} ລາຍການ',
             data: isLoading ? _getMockCategories() : items,
             columns: columns,
             onAdd: _openAdd,

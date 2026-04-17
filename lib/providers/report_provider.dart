@@ -85,19 +85,26 @@ class ReportState {
       isLoading: isLoading ?? this.isLoading,
       isExporting: isExporting ?? this.isExporting,
       error: error,
-      teacherAttendanceRecords: teacherAttendanceRecords ?? this.teacherAttendanceRecords,
-      teacherAttendanceFilters: teacherAttendanceFilters ?? this.teacherAttendanceFilters,
-      teacherAttendanceTotalCount: teacherAttendanceTotalCount ?? this.teacherAttendanceTotalCount,
-      teacherAttendanceSummary: teacherAttendanceSummary ?? this.teacherAttendanceSummary,
-      isTeacherAttendanceLoading: isTeacherAttendanceLoading ?? this.isTeacherAttendanceLoading,
-      isTeacherAttendanceExporting: isTeacherAttendanceExporting ?? this.isTeacherAttendanceExporting,
+      teacherAttendanceRecords:
+          teacherAttendanceRecords ?? this.teacherAttendanceRecords,
+      teacherAttendanceFilters:
+          teacherAttendanceFilters ?? this.teacherAttendanceFilters,
+      teacherAttendanceTotalCount:
+          teacherAttendanceTotalCount ?? this.teacherAttendanceTotalCount,
+      teacherAttendanceSummary:
+          teacherAttendanceSummary ?? this.teacherAttendanceSummary,
+      isTeacherAttendanceLoading:
+          isTeacherAttendanceLoading ?? this.isTeacherAttendanceLoading,
+      isTeacherAttendanceExporting:
+          isTeacherAttendanceExporting ?? this.isTeacherAttendanceExporting,
       teacherAttendanceError: teacherAttendanceError,
       financeData: financeData ?? this.financeData,
       isFinanceLoading: isFinanceLoading ?? this.isFinanceLoading,
       isFinanceExporting: isFinanceExporting ?? this.isFinanceExporting,
       financeError: financeError,
       popularSubjectsData: popularSubjectsData ?? this.popularSubjectsData,
-      isPopularSubjectsLoading: isPopularSubjectsLoading ?? this.isPopularSubjectsLoading,
+      isPopularSubjectsLoading:
+          isPopularSubjectsLoading ?? this.isPopularSubjectsLoading,
       popularSubjectsError: popularSubjectsError,
     );
   }
@@ -144,7 +151,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     String? scholarship,
     String? dormitoryType,
     String? gender,
-    String format = 'csv',
+    String format = 'excel',
   }) async {
     state = state.copyWith(isExporting: true, error: null);
     try {
@@ -169,10 +176,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final response = await _service.getStudentSummary(academicId: academicId);
-      state = state.copyWith(
-        summary: response.data,
-        isLoading: false,
-      );
+      state = state.copyWith(summary: response.data, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
@@ -188,7 +192,10 @@ class ReportNotifier extends StateNotifier<ReportState> {
     String? status,
     String? teacherId,
   }) async {
-    state = state.copyWith(isTeacherAttendanceLoading: true, teacherAttendanceError: null);
+    state = state.copyWith(
+      isTeacherAttendanceLoading: true,
+      teacherAttendanceError: null,
+    );
     try {
       final response = await _service.getTeacherAttendanceReport(
         academicId: academicId,
@@ -216,9 +223,12 @@ class ReportNotifier extends StateNotifier<ReportState> {
     String? month,
     String? status,
     String? teacherId,
-    String format = 'csv',
+    String format = 'excel',
   }) async {
-    state = state.copyWith(isTeacherAttendanceExporting: true, teacherAttendanceError: null);
+    state = state.copyWith(
+      isTeacherAttendanceExporting: true,
+      teacherAttendanceError: null,
+    );
     try {
       final response = await _service.exportTeacherAttendanceReport(
         academicId: academicId,
@@ -242,10 +252,7 @@ class ReportNotifier extends StateNotifier<ReportState> {
     state = state.copyWith(teacherAttendanceError: null);
   }
 
-  Future<void> getFinanceReport({
-    String? academicId,
-    int? year,
-  }) async {
+  Future<void> getFinanceReport({String? academicId, int? year}) async {
     state = state.copyWith(isFinanceLoading: true, financeError: null);
     try {
       final response = await _service.getFinanceReport(
@@ -267,13 +274,15 @@ class ReportNotifier extends StateNotifier<ReportState> {
   Future<ExportReportData?> exportFinanceReport({
     String? academicId,
     int? year,
-    String format = 'csv',
+    String tab = 'overview',
+    String format = 'excel',
   }) async {
     state = state.copyWith(isFinanceExporting: true, financeError: null);
     try {
       final response = await _service.exportFinanceReport(
         academicId: academicId,
         year: year,
+        tab: tab,
         format: format,
       );
       state = state.copyWith(isFinanceExporting: false);
@@ -287,10 +296,11 @@ class ReportNotifier extends StateNotifier<ReportState> {
     }
   }
 
-  Future<void> getPopularSubjectsReport({
-    String? academicId,
-  }) async {
-    state = state.copyWith(isPopularSubjectsLoading: true, popularSubjectsError: null);
+  Future<void> getPopularSubjectsReport({String? academicId}) async {
+    state = state.copyWith(
+      isPopularSubjectsLoading: true,
+      popularSubjectsError: null,
+    );
     try {
       final response = await _service.getPopularSubjectsReport(
         academicId: academicId,

@@ -31,6 +31,10 @@ class _SalaryPaymentScreenState extends ConsumerState<SalaryPaymentScreen> {
   }
 
   Future<void> _handlePaymentPrint(SalaryPaymentModel payment) async {
+    await _handlePaymentPrintById(payment.salaryPaymentId);
+  }
+
+  Future<void> _handlePaymentPrintById(String paymentId) async {
     if (_isPreparingPaymentPrint) {
       return;
     }
@@ -46,7 +50,7 @@ class _SalaryPaymentScreenState extends ConsumerState<SalaryPaymentScreen> {
 
       await showSalaryPaymentPrintDialog(
         context: context,
-        paymentId: payment.salaryPaymentId,
+        paymentId: paymentId,
         onPreviewReady: () {
           if (mounted && _isPreparingPaymentPrint) {
             setState(() => _isPreparingPaymentPrint = false);
@@ -83,6 +87,7 @@ class _SalaryPaymentScreenState extends ConsumerState<SalaryPaymentScreen> {
               Expanded(
                 flex: 4,
                 child: SalaryTeacherList(
+                  onPrintPayment: _handlePaymentPrintById,
                   onSelectTeacher: (id) => ref
                       .read(salaryPaymentProvider.notifier)
                       .selectTeacher(id),
@@ -109,6 +114,7 @@ class _SalaryPaymentScreenState extends ConsumerState<SalaryPaymentScreen> {
               SizedBox(
                 width: leftWidth,
                 child: SalaryTeacherList(
+                  onPrintPayment: _handlePaymentPrintById,
                   onSelectTeacher: (id) => ref
                       .read(salaryPaymentProvider.notifier)
                       .selectTeacher(id),

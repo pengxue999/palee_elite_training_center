@@ -220,8 +220,6 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
             children: [
               Expanded(
                 child: AppDataTable<AcademicYearModel>(
-                  title: 'ສົກຮຽນ',
-                  subtitle: 'ທັງໝົດ ${items.length} ລາຍການ',
                   data: isLoading ? _getMockAcademicYears() : items,
                   columns: columns,
                   onAdd: _openAdd,

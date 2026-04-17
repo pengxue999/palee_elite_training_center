@@ -21,6 +21,7 @@ class AppDataTable<T extends Object> extends StatefulWidget {
   final String addLabel;
   final bool showActions;
   final bool isLoading;
+  final double rowHeight;
 
   const AppDataTable({
     super.key,
@@ -37,6 +38,7 @@ class AppDataTable<T extends Object> extends StatefulWidget {
     this.addLabel = "ເພີ່ມໃໝ່",
     this.showActions = true,
     this.isLoading = false,
+    this.rowHeight = 48,
   });
 
   @override
@@ -47,10 +49,9 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
   String searchQuery = '';
   int currentPage = 1;
   int _calculatedPageSize = 10;
+  double? _lastMeasuredBodyHeight;
   final _hoveredRow = ValueNotifier<int?>(null);
   final _searchController = TextEditingController();
-
-  static const double _rowHeight = 48.0;
 
   @override
   void didUpdateWidget(covariant AppDataTable<T> oldWidget) {
@@ -94,8 +95,10 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
   int get totalPages => (filteredData.length / pageSize).ceil().clamp(1, 999);
 
   void _updatePageSizeForAvailableHeight(double availableHeight) {
-    final effectiveHeight = availableHeight - 44.0;
-    final calculatedSize = (effectiveHeight / _rowHeight).floor().clamp(1, 50);
+    final calculatedSize = (availableHeight / widget.rowHeight).floor().clamp(
+      1,
+      50,
+    );
 
     if (calculatedSize != _calculatedPageSize) {
       final newMaxPage = (filteredData.length / calculatedSize).ceil().clamp(
@@ -123,25 +126,38 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final showHeader = _hasHeaderContent;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(),
-        const SizedBox(height: 16),
+        if (showHeader) ...[_buildHeader(), const SizedBox(height: 16)],
         Expanded(child: _buildTable()),
       ],
     );
+  }
+
+  bool get _hasHeaderContent {
+    return widget.searchKeys.isNotEmpty ||
+        widget.onAdd != null ||
+        (widget.title?.isNotEmpty ?? false) ||
+        widget.subtitle != null;
   }
 
   Widget _buildHeader() {
     final hasSearch = widget.searchKeys.isNotEmpty;
     final hasTitle =
         (widget.title?.isNotEmpty ?? false) || widget.subtitle != null;
+    final titleSection = hasTitle ? _buildTitleSection() : null;
 
     return ResponsiveBuilder(
       mobile: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (titleSection != null) ...[
+            titleSection,
+            const SizedBox(height: 12),
+          ],
           if (hasSearch)
             AppTextField(
               hint: 'ຄົ້ນຫາ...',
@@ -180,6 +196,10 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
       ),
       tablet: Row(
         children: [
+          if (titleSection != null) ...[
+            Expanded(child: titleSection),
+            const SizedBox(width: 16),
+          ],
           if (hasSearch) _buildSearchField(maxWidth: 400, expanded: true),
           if (hasSearch && widget.onAdd != null) const SizedBox(width: 12),
           if (widget.onAdd != null)
@@ -192,6 +212,10 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
       ),
       desktop: Row(
         children: [
+          if (titleSection != null) ...[
+            Expanded(child: titleSection),
+            const SizedBox(width: 16),
+          ],
           if (hasSearch) _buildSearchField(maxWidth: 400),
           if (hasSearch && widget.onAdd != null) const SizedBox(width: 12),
           if (widget.onAdd != null)
@@ -205,6 +229,10 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
       ),
       wideDesktop: Row(
         children: [
+          if (titleSection != null) ...[
+            Expanded(child: titleSection),
+            const SizedBox(width: 16),
+          ],
           if (hasSearch) _buildSearchField(maxWidth: 400),
           if (hasSearch && widget.onAdd != null) const SizedBox(width: 12),
           if (widget.onAdd != null)
@@ -216,6 +244,33 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
           if (!hasTitle) const Spacer(),
         ],
       ),
+    );
+  }
+
+  Widget _buildTitleSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.title?.isNotEmpty ?? false)
+          Text(
+            widget.title!,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.foreground,
+            ),
+          ),
+        if (widget.subtitle != null) ...[
+          if (widget.title?.isNotEmpty ?? false) const SizedBox(height: 4),
+          Text(
+            widget.subtitle!,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.mutedForeground,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -363,9 +418,15 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _updatePageSizeForAvailableHeight(constraints.maxHeight);
-        });
+        final measuredHeight = constraints.maxHeight;
+        if (_lastMeasuredBodyHeight != measuredHeight) {
+          _lastMeasuredBodyHeight = measuredHeight;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _updatePageSizeForAvailableHeight(measuredHeight);
+            }
+          });
+        }
 
         return _buildTableBodyContent(data);
       },
@@ -392,6 +453,7 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
               onExit: (_) => _hoveredRow.value = null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
+                constraints: BoxConstraints(minHeight: widget.rowHeight),
                 decoration: BoxDecoration(
                   color: isHovered
                       ? AppColors.primary.withValues(alpha: 0.05)

@@ -14,12 +14,14 @@ class PaymentDialog extends ConsumerStatefulWidget {
   final String teacherId;
   final TeachingMonth month;
   final VoidCallback? onPaymentComplete;
+  final Future<void> Function(String paymentId)? onPrintPayment;
 
   const PaymentDialog({
     super.key,
     required this.teacherId,
     required this.month,
     this.onPaymentComplete,
+    this.onPrintPayment,
   });
 
   @override
@@ -30,6 +32,7 @@ class PaymentDialog extends ConsumerStatefulWidget {
     required String teacherId,
     required TeachingMonth month,
     VoidCallback? onPaymentComplete,
+    Future<void> Function(String paymentId)? onPrintPayment,
   }) {
     return showDialog(
       context: context,
@@ -38,6 +41,7 @@ class PaymentDialog extends ConsumerStatefulWidget {
         teacherId: teacherId,
         month: month,
         onPaymentComplete: onPaymentComplete,
+        onPrintPayment: onPrintPayment,
       ),
     );
   }
@@ -123,21 +127,20 @@ class _PaymentDialogState extends ConsumerState<PaymentDialog> {
         final dialogNavigator = Navigator.of(context);
         final rootNavigator = Navigator.of(context, rootNavigator: true);
 
-        await SuccessOverlay.show(
-          rootNavigator.context,
-          message: 'ບັນທຶກການຈ່າຍເງິນສຳເລັດ',
-        );
-
         if (!mounted || !rootNavigator.context.mounted) {
           return;
         }
 
         dialogNavigator.pop();
         widget.onPaymentComplete?.call();
-        await showSalaryPaymentPrintDialog(
-          context: rootNavigator.context,
-          paymentId: paymentId,
-        );
+        if (widget.onPrintPayment != null) {
+          await widget.onPrintPayment!(paymentId);
+        } else {
+          await showSalaryPaymentPrintDialog(
+            context: rootNavigator.context,
+            paymentId: paymentId,
+          );
+        }
       } else {
         final err = ref.read(salaryPaymentProvider).error;
         setState(() => _error = err ?? 'ເກີດຂໍ້ຜິດພາດ');

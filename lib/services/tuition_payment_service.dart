@@ -50,6 +50,23 @@ class TuitionPaymentService {
     return response.bodyBytes;
   }
 
+  Future<Uint8List> createTuitionPaymentHistoryPdf(
+    String registrationId,
+  ) async {
+    final response = await _http.get(
+      '/tuition-payments/by-registration/$registrationId/history-pdf',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ສະຫຼຸບການຈ່າຍໄດ້');
+    }
+
+    return response.bodyBytes;
+  }
+
   Future<void> deleteTuitionPayment(String id) async {
     final response = await _http.delete('/tuition-payments/$id');
     _http.handleJson(response);

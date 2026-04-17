@@ -18,7 +18,7 @@ void main() async {
 
   if (!kIsWeb) {
     await WindowManager.instance.ensureInitialized();
-    const WindowOptions options = WindowOptions(
+     WindowOptions(
       minimumSize: Size(1024, 700),
       center: true,
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
+import 'package:palee_elite_training_center/core/utils/report_export_action_helper.dart';
 import 'package:palee_elite_training_center/core/utils/student_report_printer.dart';
 import 'package:palee_elite_training_center/models/report_models.dart';
 import 'package:palee_elite_training_center/providers/academic_year_provider.dart';
@@ -11,11 +12,7 @@ import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_card.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
-import 'package:palee_elite_training_center/widgets/app_toast.dart';
 import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
-import 'package:file_selector/file_selector.dart';
-import 'dart:typed_data';
-import 'dart:convert';
 
 class ReportStudentScreen extends ConsumerStatefulWidget {
   const ReportStudentScreen({super.key});
@@ -82,54 +79,26 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
     _applyFilters();
   }
 
-  Future<void> _exportToCsv() async {
-    final exportData = await ref
-        .read(reportProvider.notifier)
-        .exportStudentReport(
-          academicId: _selectedAcademicId,
-          provinceId: _selectedProvinceId,
-          districtId: _selectedDistrictId,
-          dormitoryType: _selectedDormitoryType,
-          gender: _selectedGender,
-        );
-
-    if (exportData != null && mounted) {
-      final csvData = utf8.encode(exportData.data);
-      final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...csvData]);
-      final FileSaveLocation? result = await getSaveLocation(
-        suggestedName: exportData.filename,
-        acceptedTypeGroups: [
-          const XTypeGroup(label: 'CSV Files', extensions: ['csv']),
-        ],
-      );
-
-      if (result != null) {
-        String path = result.path;
-        if (!path.toLowerCase().endsWith('.csv')) {
-          path += '.csv';
-        }
-
-        try {
-          final xFile = XFile.fromData(
-            bytes,
-            name: exportData.filename,
-            mimeType: 'text/csv',
-          );
-          await xFile.saveTo(path);
-
-          if (mounted) {
-            AppToast.success(context, 'ບັນທຶກສຳເລັດ ຢູ່ທີ: $path');
-          }
-        } catch (e) {
-          if (mounted) {
-            AppToast.error(context, 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ: $e');
-          }
-        }
-      }
-    } else if (mounted) {
-      final error = ref.read(reportProvider).error;
-      AppToast.error(context, error ?? 'ບໍ່ສາມາດ Export ໄດ້');
-    }
+  Future<void> _handleExport() async {
+    await ReportExportActionHelper.exportReport(
+      context: context,
+      reportTitle: 'ລາຍງານນັກຮຽນ',
+      requestExport: (format) {
+        return ref
+            .read(reportProvider.notifier)
+            .exportStudentReport(
+              academicId: _selectedAcademicId,
+              provinceId: _selectedProvinceId,
+              districtId: _selectedDistrictId,
+              scholarship: _selectedScholarship,
+              dormitoryType: _selectedDormitoryType,
+              gender: _selectedGender,
+              format: format,
+            );
+      },
+      resolveErrorMessage: () =>
+          ref.read(reportProvider).error ?? 'ບໍ່ສາມາດ Export ໄດ້',
+    );
   }
 
   Future<void> _handlePdfPrint(ReportState reportState) async {
@@ -376,14 +345,14 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
                       if (hasStudentData) ...[
                         AppButton(
                           label: reportState.isExporting
-                              ? 'ກຳລັງ Export...'
-                              : 'ບັນທຶກ Excel',
+                              ? 'ກຳລັງບັນທຶກ...'
+                              : 'ສົ່ງອອກເປັນ Excel',
                           icon: Icons.download_rounded,
                           variant: AppButtonVariant.success,
                           onPressed:
                               reportState.isExporting || _isPreparingPdfPrint
                               ? null
-                              : _exportToCsv,
+                              : _handleExport,
                         ),
                         const SizedBox(width: 12),
                         AppButton(
@@ -439,7 +408,7 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
                     ],
                   ),
                 ),
-
+              SizedBox(height: 16),
               Expanded(child: _buildDataTable(reportState)),
             ],
           ),
@@ -568,9 +537,6 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
 
     return AppDataTable<StudentReportItem>(
       title: '',
-      subtitle: state.students.isEmpty
-          ? 'ບໍ່ມີຂໍ້ມູນ'
-          : 'ທັງໝົດ ${state.totalCount} ຄົນ',
       data: state.students,
       columns: columns,
       isLoading: state.isLoading,

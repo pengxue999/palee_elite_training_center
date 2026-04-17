@@ -5,10 +5,13 @@ import 'package:palee_elite_training_center/widgets/app_text_field.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/format_utils.dart';
 import '../../core/utils/responsive_utils.dart';
+import '../../core/utils/tuition_payment_history_printer.dart';
 import '../../core/utils/tuition_payment_receipt_printer.dart';
+import '../../models/registration_model.dart';
 import '../../models/tuition_payment_model.dart';
 import '../../providers/registration_provider.dart';
 import '../../providers/tuition_payment_provider.dart';
+import '../../widgets/app_button.dart';
 import '../../screens/registration_screen/widgets/status_badge.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/print_preparation_overlay.dart';
@@ -28,6 +31,7 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
   final _searchController = TextEditingController();
   String? _selectedRegId;
   bool _isPreparingPaymentPrint = false;
+  String? _printOverlayMessage;
 
   @override
   void initState() {
@@ -46,12 +50,16 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
 
   String _formatKip(double value) => FormatUtils.formatKip(value.toInt());
 
-  Future<void> _handlePaymentPrint(TuitionPaymentModel payment) async {
+  Future<void> _handlePaymentPrintById(String paymentId) async {
     if (_isPreparingPaymentPrint) {
       return;
     }
 
-    setState(() => _isPreparingPaymentPrint = true);
+    setState(() {
+      _isPreparingPaymentPrint = true;
+      _printOverlayMessage =
+          'ລະບົບກຳລັງດຶງຂໍ້ມູນການຈ່າຍຄ່າຮຽນ ແລະ ສ້າງ preview ໃຫ້ພ້ອມສຳລັບການພິມ';
+    });
 
     try {
       await WidgetsBinding.instance.endOfFrame;
@@ -62,18 +70,69 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
 
       await showTuitionPaymentPrintDialog(
         context: context,
-        paymentId: payment.tuitionPaymentId,
+        paymentId: paymentId,
         onPreviewReady: () {
           if (mounted && _isPreparingPaymentPrint) {
-            setState(() => _isPreparingPaymentPrint = false);
+            setState(() {
+              _isPreparingPaymentPrint = false;
+              _printOverlayMessage = null;
+            });
           }
         },
       );
     } finally {
       if (mounted && _isPreparingPaymentPrint) {
-        setState(() => _isPreparingPaymentPrint = false);
+        setState(() {
+          _isPreparingPaymentPrint = false;
+          _printOverlayMessage = null;
+        });
       }
     }
+  }
+
+  Future<void> _handlePaymentHistoryPrintByRegistration(
+    String registrationId,
+  ) async {
+    if (_isPreparingPaymentPrint) {
+      return;
+    }
+
+    setState(() {
+      _isPreparingPaymentPrint = true;
+      _printOverlayMessage = 'ລະບົບກຳລັງສ້າງສະຫຼຸບການຈ່າຍຄ່າຮຽນຂອງນັກຮຽນຄົນນີ້';
+    });
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showTuitionPaymentHistoryPrintDialog(
+        context: context,
+        registrationId: registrationId,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPaymentPrint) {
+            setState(() {
+              _isPreparingPaymentPrint = false;
+              _printOverlayMessage = null;
+            });
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPaymentPrint) {
+        setState(() {
+          _isPreparingPaymentPrint = false;
+          _printOverlayMessage = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _handlePaymentPrint(TuitionPaymentModel payment) async {
+    await _handlePaymentHistoryPrintByRegistration(payment.registrationId);
   }
 
   @override
@@ -124,11 +183,11 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
           },
         ),
         if (_isPreparingPaymentPrint)
-          const PrintPreparationOverlay(
+          PrintPreparationOverlay(
             icon: Icons.receipt_long_rounded,
             title: 'ກຳລັງໂຫຼດ...',
             message:
-                'ລະບົບກຳລັງດຶງຂໍ້ມູນການຈ່າຍຄ່າຮຽນ ແລະ ສ້າງ preview ໃຫ້ພ້ອມສຳລັບການພິມ',
+                _printOverlayMessage ?? 'ລະບົບກຳລັງກຽມ preview ສຳລັບການພິມ',
             hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
           ),
       ],
@@ -144,15 +203,29 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
             return r.registrationId.toLowerCase().contains(q) ||
                 r.studentFullName.toLowerCase().contains(q);
           }).toList();
+    RegistrationModel? selectedRegistration;
+    if (_selectedRegId != null) {
+      for (final registration in regs) {
+        if (registration.registrationId == _selectedRegId) {
+          selectedRegistration = registration;
+          break;
+        }
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'ກວດສອບການລົງທະບຽນ',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              const Text(
+                'ກວດສອບການລົງທະບຽນ',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+            ],
           ),
           AppTextField(
             controller: _searchController,
@@ -193,6 +266,7 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
                     ref.read(registrationProvider.notifier).getRegistrations();
                     ref.read(tuitionPaymentProvider.notifier).getPayments();
                   },
+                  onPrintPayment: _handlePaymentPrintById,
                 );
               },
               isLoading: regState.isLoading && regs.isEmpty,

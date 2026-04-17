@@ -13,11 +13,13 @@ import '../../../widgets/success_overlay.dart';
 class TuitionPaymentDialog extends ConsumerStatefulWidget {
   final RegistrationModel registration;
   final VoidCallback? onPaymentComplete;
+  final Future<void> Function(String paymentId)? onPrintPayment;
 
   const TuitionPaymentDialog({
     super.key,
     required this.registration,
     this.onPaymentComplete,
+    this.onPrintPayment,
   });
 
   @override
@@ -28,6 +30,7 @@ class TuitionPaymentDialog extends ConsumerStatefulWidget {
     required BuildContext context,
     required RegistrationModel registration,
     VoidCallback? onPaymentComplete,
+    Future<void> Function(String paymentId)? onPrintPayment,
   }) {
     return showDialog(
       context: context,
@@ -35,6 +38,7 @@ class TuitionPaymentDialog extends ConsumerStatefulWidget {
       builder: (context) => TuitionPaymentDialog(
         registration: registration,
         onPaymentComplete: onPaymentComplete,
+        onPrintPayment: onPrintPayment,
       ),
     );
   }
@@ -135,18 +139,18 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
     if (mounted) {
       setState(() => _isSaving = false);
       if (createdPayment != null) {
-        await SuccessOverlay.show(
-          rootNavigator.context,
-          message: 'ບັນທຶກການຈ່າຍເງິນສຳເລັດ',
-        );
         if (!mounted || !rootNavigator.context.mounted) return;
 
         dialogNavigator.pop();
         widget.onPaymentComplete?.call();
-        await showTuitionPaymentPrintDialog(
-          context: rootNavigator.context,
-          paymentId: createdPayment.tuitionPaymentId,
-        );
+        if (widget.onPrintPayment != null) {
+          await widget.onPrintPayment!(createdPayment.tuitionPaymentId);
+        } else {
+          await showTuitionPaymentPrintDialog(
+            context: rootNavigator.context,
+            paymentId: createdPayment.tuitionPaymentId,
+          );
+        }
       } else {
         final err = ref.read(tuitionPaymentProvider).error;
         setState(() => _error = err ?? 'ເກີດຂໍ້ຜິດພາດ');

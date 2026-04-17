@@ -195,8 +195,6 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
             children: [
               Expanded(
                 child: AppDataTable<DonorModel>(
-                  title: 'ຂໍ້ມູນຜູ້ບໍລິຈາກ',
-                  subtitle: 'ທັງໝົດ ${state.donors.length} ຄົນ',
                   data: isLoading ? _getMockDonors() : state.donors,
                   columns: columns,
                   onAdd: _openAdd,

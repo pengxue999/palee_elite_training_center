@@ -195,8 +195,6 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
           padding: const EdgeInsets.all(24),
           child: AppDataTable<FeeModel>(
             key: ValueKey('fees_table_${feeState.fees.length}_$isLoading'),
-            title: 'ຄ່າທຳນຽມ',
-            subtitle: 'ທັງໝົດ ${feeState.fees.length} ລາຍການ',
             data: isLoading ? _getMockFees() : feeState.fees,
             columns: columns,
             onAdd: _openAdd,

@@ -10,8 +10,13 @@ import 'payment_dialog.dart';
 
 class SalaryTeacherList extends ConsumerStatefulWidget {
   final void Function(String teacherId) onSelectTeacher;
+  final Future<void> Function(String paymentId)? onPrintPayment;
 
-  const SalaryTeacherList({super.key, required this.onSelectTeacher});
+  const SalaryTeacherList({
+    super.key,
+    required this.onSelectTeacher,
+    this.onPrintPayment,
+  });
 
   @override
   ConsumerState<SalaryTeacherList> createState() => _SalaryTeacherListState();
@@ -246,6 +251,7 @@ class _SalaryTeacherListState extends ConsumerState<SalaryTeacherList> {
                                     context: context,
                                     teacherId: teacher.teacherId,
                                     month: month,
+                                    onPrintPayment: widget.onPrintPayment,
                                   );
                                 }
                               }

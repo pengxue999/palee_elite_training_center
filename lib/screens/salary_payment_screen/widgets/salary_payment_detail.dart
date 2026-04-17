@@ -116,9 +116,9 @@ class _PaymentHistorySection extends ConsumerWidget {
               ),
           ],
         ),
+        const SizedBox(height: 16),
         Expanded(
           child: AppDataTable<SalaryPaymentModel>(
-            title: 'ປະຫວັດການເບີກຈ່າຍເງິນ',
             data: allPayments,
             columns: [
               DataColumnDef<SalaryPaymentModel>(

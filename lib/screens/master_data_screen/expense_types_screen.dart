@@ -161,8 +161,6 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
             children: [
               Expanded(
                 child: AppDataTable<ExpenseCategoryModel>(
-                  title: 'ປະເພດລາຍຈ່າຍ',
-                  subtitle: 'ທັງໝົດ ${state.expenseCategories.length} ລາຍການ',
                   data: isLoading
                       ? _getMockExpenseCategories()
                       : state.expenseCategories,

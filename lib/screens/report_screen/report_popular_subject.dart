@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/utils/format_utils.dart';
+import '../../core/utils/popular_subject_report_printer.dart';
+import '../../core/utils/report_export_action_helper.dart';
 import '../../models/report_models.dart';
 import '../../models/academic_year_model.dart';
 import '../../providers/report_provider.dart';
 import '../../providers/academic_year_provider.dart';
-import '../../widgets/app_data_table.dart';
+import '../../services/report_service.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dropdown.dart';
+import '../../widgets/app_toast.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/empty_widget.dart';
+import '../../widgets/print_preparation_overlay.dart';
 
 class ReportPopularSubjectScreen extends ConsumerStatefulWidget {
   const ReportPopularSubjectScreen({super.key});
@@ -24,10 +27,12 @@ class ReportPopularSubjectScreen extends ConsumerStatefulWidget {
 
 class _ReportPopularSubjectScreenState
     extends ConsumerState<ReportPopularSubjectScreen> {
-  String _activeTab = 'overview';
   String? _selectedAcademicYear;
   String? _selectedSubjectCategory;
+  final ReportService _reportService = ReportService();
   bool _isLoading = false;
+  bool _isExporting = false;
+  bool _isPreparingPdfPrint = false;
 
   @override
   void initState() {
@@ -108,25 +113,86 @@ class _ReportPopularSubjectScreenState
         .toList();
   }
 
-  List<String> get _subjectCategories {
-    final categories = _reportData?.categories.keys.toList() ?? [];
-    categories.sort();
-    return categories;
-  }
-
   int get _totalStudents {
     return _reportData?.summary.totalStudents ?? 0;
   }
 
-  void _clearFilters() {
-    setState(() {
-      _selectedSubjectCategory = null;
-      _setDefaultAcademicYear();
-    });
+  String? get _selectedAcademicId {
+    final academicYears = ref.read(academicYearProvider).academicYears;
+    final selectedYear = academicYears.where(
+      (y) => y.academicYear == _selectedAcademicYear,
+    );
+    if (selectedYear.isEmpty) {
+      return null;
+    }
+    final academicId = selectedYear.first.academicId;
+    if (academicId == null || academicId.isEmpty) {
+      return null;
+    }
+    return academicId;
   }
 
-  String _formatAmount(double amount) {
-    return FormatUtils.formatCurrency(amount);
+  Future<void> _handleExport() async {
+    if (_isExporting || _reportData == null || _filteredSubjects.isEmpty) {
+      return;
+    }
+
+    setState(() => _isExporting = true);
+
+    try {
+      await ReportExportActionHelper.exportReport(
+        context: context,
+        reportTitle: 'ລາຍງານວິຊາຍອດນິຍົມ',
+        requestExport: (format) async {
+          final exportResponse = await _reportService
+              .exportPopularSubjectsReport(
+                academicId: _selectedAcademicId,
+                format: format,
+              );
+          return exportResponse.data;
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'Export ບໍ່ສຳເລັດ: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
+  Future<void> _handlePdfPrint() async {
+    if (_isPreparingPdfPrint ||
+        _reportData == null ||
+        _filteredSubjects.isEmpty) {
+      return;
+    }
+
+    setState(() => _isPreparingPdfPrint = true);
+
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+
+      if (!mounted) {
+        return;
+      }
+
+      await showPopularSubjectReportPrintDialog(
+        context: context,
+        academicId: _selectedAcademicId,
+        onPreviewReady: () {
+          if (mounted && _isPreparingPdfPrint) {
+            setState(() => _isPreparingPdfPrint = false);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _isPreparingPdfPrint) {
+        setState(() => _isPreparingPdfPrint = false);
+      }
+    }
   }
 
   @override
@@ -135,34 +201,49 @@ class _ReportPopularSubjectScreenState
     final reportState = ref.watch(reportProvider);
     final filteredSubjects = _filteredSubjects;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await _loadInitialData();
-          await _loadPopularSubjectsReport();
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildFilters(academicYears),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _isLoading || reportState.isPopularSubjectsLoading
-                  ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
-                  : reportState.popularSubjectsError != null
-                  ? _buildErrorWidget(reportState.popularSubjectsError!)
-                  : _reportData == null || filteredSubjects.isEmpty
-                  ? EmptyWidget(
-                      title: 'ບໍ່ມີຂໍ້ມູນ',
-                      subtitle: 'ບໍ່ພົບຂໍ້ມູນວິຊາສຳລັບສົກຮຽນທີ່ເລືອກ',
-                      icon: Icons.school_outlined,
-                    )
-                  : _buildContent(filteredSubjects),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: AppColors.background,
+          body: RefreshIndicator(
+            onRefresh: () async {
+              await _loadInitialData();
+              await _loadPopularSubjectsReport();
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildFilters(
+                  academicYears,
+                  hasData: filteredSubjects.isNotEmpty,
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _isLoading || reportState.isPopularSubjectsLoading
+                      ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...')
+                      : reportState.popularSubjectsError != null
+                      ? _buildErrorWidget(reportState.popularSubjectsError!)
+                      : _reportData == null || filteredSubjects.isEmpty
+                      ? EmptyWidget(
+                          title: 'ບໍ່ມີຂໍ້ມູນ',
+                          subtitle: 'ບໍ່ພົບຂໍ້ມູນວິຊາສຳລັບສົກຮຽນທີ່ເລືອກ',
+                          icon: Icons.school_outlined,
+                        )
+                      : _buildOverviewTab(filteredSubjects),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        if (_isPreparingPdfPrint)
+          const PrintPreparationOverlay(
+            icon: Icons.print_rounded,
+            title: 'ກຳລັງໂຫຼດ...',
+            message:
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານວິຊາຍອດນິຍົມ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+            hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
+          ),
+      ],
     );
   }
 
@@ -200,7 +281,10 @@ class _ReportPopularSubjectScreenState
     );
   }
 
-  Widget _buildFilters(List<AcademicYearModel> academicYears) {
+  Widget _buildFilters(
+    List<AcademicYearModel> academicYears, {
+    required bool hasData,
+  }) {
     return Row(
       spacing: 16,
       children: [
@@ -221,79 +305,25 @@ class _ReportPopularSubjectScreenState
             hint: 'ສົກຮຽນ',
           ),
         ),
-        _buildTabs(),
+        const Spacer(),
+        AppButton(
+          label: _isExporting ? 'ກຳລັງບັນທຶກ...' : 'ສົ່ງອອກເປັນ Excel',
+          icon: Icons.download_rounded,
+          variant: AppButtonVariant.success,
+          onPressed: _isExporting || _isPreparingPdfPrint || !hasData
+              ? null
+              : _handleExport,
+        ),
+        AppButton(
+          label: _isPreparingPdfPrint ? 'ກຳລັງ ພິມ...' : 'ພິມ PDF',
+          icon: Icons.print_rounded,
+          variant: AppButtonVariant.primary,
+          onPressed: _isExporting || _isPreparingPdfPrint || !hasData
+              ? null
+              : _handlePdfPrint,
+        ),
       ],
     );
-  }
-
-  Widget _buildTabs() {
-    final tabs = [
-      ('overview', 'ພາບລວມ', Icons.dashboard_rounded),
-      ('subjects', 'ວິຊານິຍົມ', Icons.trending_up_rounded),
-      ('levels', 'ລະດັບ/ຊັ້ນ', Icons.format_list_numbered_rounded),
-    ];
-
-    return Row(
-      children: tabs.map((tab) {
-        final isActive = _activeTab == tab.$1;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: Material(
-            color: isActive ? AppColors.primary : AppColors.card,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: () => setState(() => _activeTab = tab.$1),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isActive ? AppColors.primary : AppColors.border,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      tab.$3,
-                      size: 18,
-                      color: isActive
-                          ? Colors.white
-                          : AppColors.mutedForeground,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      tab.$2,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isActive ? Colors.white : AppColors.foreground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildContent(List<PopularSubjectItem> subjects) {
-    switch (_activeTab) {
-      case 'overview':
-        return _buildOverviewTab(subjects);
-      case 'subjects':
-        return _buildSubjectsTab(subjects);
-      case 'levels':
-        return _buildLevelsTab();
-      default:
-        return _buildOverviewTab(subjects);
-    }
   }
 
   Widget _buildOverviewTab(List<PopularSubjectItem> subjects) {
@@ -311,6 +341,8 @@ class _ReportPopularSubjectScreenState
           ),
           const SizedBox(height: 16),
           _buildTopSubjectsCard(subjects),
+          const SizedBox(height: 16),
+          _buildLevelsSection(),
         ],
       ),
     );
@@ -482,14 +514,14 @@ class _ReportPopularSubjectScreenState
                       final item = sortedEntries[groupIndex];
                       return BarTooltipItem(
                         '${item.key}\n',
-                        const TextStyle(color: Colors.white, fontSize: 14),
+                        const TextStyle(color: Colors.white, fontSize: 12),
                         children: [
                           TextSpan(
                             text: '${item.value} ຄົນ',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -508,7 +540,7 @@ class _ReportPopularSubjectScreenState
                         return Text(
                           '${value.toInt()} ຄົນ',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 12,
                             color: AppColors.mutedForeground,
                           ),
                         );
@@ -705,127 +737,122 @@ class _ReportPopularSubjectScreenState
     );
   }
 
-  Widget _buildSubjectsTab(List<PopularSubjectItem> subjects) {
-    final sortedSubjects = List<PopularSubjectItem>.from(subjects)
+  Widget _buildLevelsSection() {
+    final levelData = List<LevelStatsItem>.from(_filteredLevels)
       ..sort((a, b) => b.studentCount.compareTo(a.studentCount));
 
-    final columns = [
-      DataColumnDef<PopularSubjectItem>(
-        key: 'subjectName',
-        label: 'ວິຊາ',
-        flex: 2,
-        render: (v, row) => Text(
-          row.subjectName,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        ),
-      ),
-      DataColumnDef<PopularSubjectItem>(
-        key: 'subjectCategory',
-        label: 'ໝວດ',
-        flex: 2,
-        render: (v, row) => Text(
-          row.subjectCategory,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.secondary,
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ລາຍລະອຽດຕາມລະດັບ/ຊັ້ນ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.foreground,
+            ),
           ),
-        ),
-      ),
-      DataColumnDef<PopularSubjectItem>(
-        key: 'studentCount',
-        label: 'ນັກຮຽນ',
-        flex: 1,
-        render: (v, row) => Text(
-          '${row.studentCount} ຄົນ',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.success,
+          const SizedBox(height: 4),
+          Text(
+            'ທັງໝົດ ${levelData.length} ລະດັບ',
+            style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
           ),
-        ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Table(
+              columnWidths: const {
+                0: FlexColumnWidth(0.7),
+                1: FlexColumnWidth(2.0),
+                2: FlexColumnWidth(1.8),
+                3: FlexColumnWidth(1.5),
+                4: FlexColumnWidth(1.0),
+              },
+              border: TableBorder.symmetric(
+                inside: BorderSide(color: AppColors.border),
+                outside: BorderSide(color: AppColors.border),
+              ),
+              children: [
+                TableRow(
+                  decoration: const BoxDecoration(color: AppColors.muted),
+                  children: [
+                    _buildTableHeaderCell('ລຳດັບ'),
+                    _buildTableHeaderCell('ວິຊາ'),
+                    _buildTableHeaderCell('ໝວດ'),
+                    _buildTableHeaderCell('ລະດັບ/ຊັ້ນ'),
+                    _buildTableHeaderCell('ນັກຮຽນ', isRightAligned: true),
+                  ],
+                ),
+                ...levelData.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final row = entry.value;
+                  return TableRow(
+                    decoration: BoxDecoration(
+                      color: index.isEven
+                          ? AppColors.card
+                          : AppColors.muted.withValues(alpha: 0.25),
+                    ),
+                    children: [
+                      _buildTableBodyCell('${index + 1}'),
+                      _buildTableBodyCell(
+                        row.subjectName,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      _buildTableBodyCell(
+                        row.subjectCategory,
+                        textColor: AppColors.secondary,
+                      ),
+                      _buildTableBodyCell(row.levelName),
+                      _buildTableBodyCell(
+                        '${row.studentCount} ຄົນ',
+                        isRightAligned: true,
+                        fontWeight: FontWeight.w600,
+                        textColor: AppColors.success,
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
       ),
-      DataColumnDef<PopularSubjectItem>(
-        key: 'percentage',
-        label: 'ສັດສ່ວນ',
-        flex: 1,
-        render: (v, row) {
-          final percentage = _totalStudents > 0
-              ? (row.studentCount / _totalStudents) * 100
-              : 0;
-          return Text(
-            '${percentage.toStringAsFixed(1)}%',
-            style: const TextStyle(fontSize: 13),
-          );
-        },
-      ),
-    ];
-
-    return AppDataTable<PopularSubjectItem>(
-      title: 'ລາຍການວິຊານິຍົມ',
-      subtitle: 'ທັງໝົດ ${sortedSubjects.length} ວິຊາ',
-      data: sortedSubjects,
-      columns: columns,
-      showActions: false,
     );
   }
 
-  Widget _buildLevelsTab() {
-    final levelData = _filteredLevels;
-
-    levelData.sort((a, b) => b.studentCount.compareTo(a.studentCount));
-
-    final columns = [
-      DataColumnDef<LevelStatsItem>(
-        key: 'subjectName',
-        label: 'ວິຊາ',
-        flex: 2,
-        render: (v, row) => Text(
-          row.subjectName,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  Widget _buildTableHeaderCell(String text, {bool isRightAligned = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Text(
+        text,
+        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: AppColors.mutedForeground,
         ),
       ),
-      DataColumnDef<LevelStatsItem>(
-        key: 'subjectCategory',
-        label: 'ໝວດ',
-        flex: 2,
-        render: (v, row) => Text(
-          row.subjectCategory,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.secondary,
-          ),
-        ),
-      ),
-      DataColumnDef<LevelStatsItem>(
-        key: 'levelName',
-        label: 'ລະດັບ/ຊັ້ນ',
-        flex: 2,
-        render: (v, row) =>
-            Text(row.levelName, style: const TextStyle(fontSize: 14)),
-      ),
-      DataColumnDef<LevelStatsItem>(
-        key: 'studentCount',
-        label: 'ນັກຮຽນ',
-        flex: 1,
-        render: (v, row) => Text(
-          '${row.studentCount} ຄົນ',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.success,
-          ),
-        ),
-      ),
-    ];
+    );
+  }
 
-    return AppDataTable<LevelStatsItem>(
-      title: 'ລາຍລະອຽດຕາມລະດັບ/ຊັ້ນ',
-      subtitle: 'ທັງໝົດ ${levelData.length} ລະດັບ',
-      data: levelData,
-      columns: columns,
-      showActions: false,
+  Widget _buildTableBodyCell(
+    String text, {
+    bool isRightAligned = false,
+    FontWeight fontWeight = FontWeight.w400,
+    Color? textColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Text(
+        text,
+        textAlign: isRightAligned ? TextAlign.right : TextAlign.left,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: fontWeight,
+          color: textColor ?? AppColors.foreground,
+        ),
+      ),
     );
   }
 }

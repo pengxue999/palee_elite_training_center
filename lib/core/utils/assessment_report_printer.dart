@@ -6,12 +6,13 @@ import 'receipt_printer.dart';
 
 final ReportService _reportService = ReportService();
 
-Future<void> showTeacherAttendanceReportPrintDialog({
+Future<void> showAssessmentReportPrintDialog({
   required BuildContext context,
   String? academicId,
-  String? month,
-  String? status,
-  String? teacherId,
+  required String semester,
+  String? subjectId,
+  String? levelId,
+  String? ranking,
   VoidCallback? onPreviewReady,
 }) async {
   try {
@@ -20,15 +21,13 @@ Future<void> showTeacherAttendanceReportPrintDialog({
         .split('T')
         .first
         .replaceAll('-', '');
-    final teacherPart = (teacherId != null && teacherId.trim().isNotEmpty)
-        ? teacherId.trim()
-        : 'ທັງໝົດ';
 
-    final pdfBytes = await _reportService.createTeacherAttendanceReportPdf(
+    final pdfBytes = await _reportService.createAssessmentReportPdf(
       academicId: academicId,
-      month: month,
-      status: status,
-      teacherId: teacherId,
+      semester: semester,
+      subjectId: subjectId,
+      levelId: levelId,
+      ranking: ranking,
     );
 
     if (!context.mounted) {
@@ -40,9 +39,9 @@ Future<void> showTeacherAttendanceReportPrintDialog({
     await showPdfPrintDialog(
       context: context,
       pdfBytes: pdfBytes,
-      documentId: '${teacherPart}_$datePart',
-      title: 'ພິມລາຍງານການຂື້ນສອນຂອງອາຈານ',
-      fileNamePrefix: 'ລາຍງານການເຂົ້າສອນ',
+      documentId: 'assessment_$datePart',
+      title: 'ພິມລາຍງານຜົນການຮຽນ',
+      fileNamePrefix: 'ລາຍງານຜົນການຮຽນ',
     );
   } catch (e) {
     if (context.mounted) {

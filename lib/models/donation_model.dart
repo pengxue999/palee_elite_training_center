@@ -45,7 +45,10 @@ class DonationModel {
       donorName: json['donor_name'] as String? ?? '',
       donorLastname: json['donor_lastname'] as String?,
       donationCategoryId: json['donation_category_id'] as int?,
-      donationCategory: json['donation_category_name'] as String? ?? json['donation_category'] as String? ?? '',
+      donationCategory:
+          json['donation_category_name'] as String? ??
+          json['donation_category'] as String? ??
+          '',
       donationName: json['donation_name'] as String? ?? '',
       amount: parseAmount(json['amount']),
       unitId: json['unit_id'] as int?,
@@ -56,7 +59,7 @@ class DonationModel {
     );
   }
 
-  dynamic operator[](String key) {
+  dynamic operator [](String key) {
     switch (key) {
       case 'donationId':
         return donationId;
@@ -94,7 +97,7 @@ class DonationModel {
 
 class DonationRequest {
   final String donorId;
-  final int donationCategoryId;
+  final String donationCategory;
   final String donationName;
   final double amount;
   final int? unitId;
@@ -103,7 +106,7 @@ class DonationRequest {
 
   DonationRequest({
     required this.donorId,
-    required this.donationCategoryId,
+    required this.donationCategory,
     required this.donationName,
     required this.amount,
     this.unitId,
@@ -114,11 +117,12 @@ class DonationRequest {
   Map<String, dynamic> toJson() {
     return {
       'donor_id': donorId,
-      'donation_category_id': donationCategoryId,
+      'donation_category': donationCategory,
       'donation_name': donationName,
       'amount': amount,
       if (unitId != null) 'unit_id': unitId,
-      if (description != null && description!.isNotEmpty) 'description': description,
+      if (description != null && description!.isNotEmpty)
+        'description': description,
       'donation_date': donationDate,
     };
   }
@@ -126,7 +130,7 @@ class DonationRequest {
 
 class DonationUpdateRequest {
   final String? donorId;
-  final int? donationCategoryId;
+  final String? donationCategory;
   final String? donationName;
   final double? amount;
   final int? unitId;
@@ -135,7 +139,7 @@ class DonationUpdateRequest {
 
   DonationUpdateRequest({
     this.donorId,
-    this.donationCategoryId,
+    this.donationCategory,
     this.donationName,
     this.amount,
     this.unitId,
@@ -146,7 +150,7 @@ class DonationUpdateRequest {
   Map<String, dynamic> toJson() {
     return {
       if (donorId != null) 'donor_id': donorId,
-      if (donationCategoryId != null) 'donation_category_id': donationCategoryId,
+      if (donationCategory != null) 'donation_category': donationCategory,
       if (donationName != null) 'donation_name': donationName,
       if (amount != null) 'amount': amount,
       if (unitId != null) 'unit_id': unitId,
@@ -160,10 +164,7 @@ class DonationListResponse {
   final List<DonationModel> data;
   final String message;
 
-  DonationListResponse({
-    required this.data,
-    required this.message,
-  });
+  DonationListResponse({required this.data, required this.message});
 
   factory DonationListResponse.fromJson(Map<String, dynamic> json) {
     final rawData = json['data'] as List<dynamic>? ?? [];
@@ -180,10 +181,7 @@ class DonationSingleResponse {
   final DonationModel data;
   final String message;
 
-  DonationSingleResponse({
-    required this.data,
-    required this.message,
-  });
+  DonationSingleResponse({required this.data, required this.message});
 
   factory DonationSingleResponse.fromJson(Map<String, dynamic> json) {
     return DonationSingleResponse(

@@ -214,8 +214,6 @@ class _SubjectDetailsScreenState extends ConsumerState<SubjectDetailsScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: AppDataTable<_SubjectDetailDisplay>(
-                  title: 'ລາຍລະອຽດວິຊາ',
-                  subtitle: 'ທັງໝົດ ${displayItems.length} ລາຍການ',
                   data: isLoading ? _getMockSubjectDetails() : displayItems,
                   columns: columns,
                   onAdd: _openAdd,

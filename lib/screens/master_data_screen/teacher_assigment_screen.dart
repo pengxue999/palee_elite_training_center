@@ -254,9 +254,6 @@ class _TeacherAssigmentScreenState
             children: [
               Expanded(
                 child: AppDataTable<TeacherAssignmentModel>(
-                  title: 'ຂໍ້ມູນການມອບໝາຍສອນ',
-                  subtitle:
-                      'ທັງໝົດ ${assignmentState.assignments.length} ລາຍການ',
                   data: isLoading
                       ? _getMockAssignments()
                       : assignmentState.assignments,

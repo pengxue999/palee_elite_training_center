@@ -25,6 +25,7 @@ import '../../models/registration_model.dart';
 import '../../providers/fee_provider.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/registration_provider.dart';
+import '../../widgets/print_preparation_overlay.dart';
 import '../../widgets/success_overlay.dart';
 
 class Student {
@@ -71,6 +72,7 @@ class NewRegistrationScreen extends ConsumerStatefulWidget {
 
 class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   int _currentStep = 1;
+  bool _isPreparingPrint = false;
   final _steps = const [
     'ກວດສອບນັກຮຽນ',
     'ເລືອກວິຊາ',
@@ -352,19 +354,31 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       final net = _netFee;
 
       if (mounted) {
-        await showRegistrationPrintDialog(
-          context: context,
-          registrationId: lastReg.registrationId,
-          registrationDate: lastReg.registrationDate,
-          studentName: studentFullName,
-          selectedFees: selectedFeesList,
-          tuitionFee: tuition,
-          dormitoryLabel: otherFeeLabel,
-          dormitoryFee: otherFeeAmount,
-          totalFee: total,
-          discountAmount: discount,
-          netFee: net,
-        );
+        setState(() => _isPreparingPrint = true);
+        try {
+          await showRegistrationPrintDialog(
+            context: context,
+            registrationId: lastReg.registrationId,
+            registrationDate: lastReg.registrationDate,
+            studentName: studentFullName,
+            selectedFees: selectedFeesList,
+            tuitionFee: tuition,
+            dormitoryLabel: otherFeeLabel,
+            dormitoryFee: otherFeeAmount,
+            totalFee: total,
+            discountAmount: discount,
+            netFee: net,
+            onPreviewReady: () {
+              if (mounted && _isPreparingPrint) {
+                setState(() => _isPreparingPrint = false);
+              }
+            },
+          );
+        } finally {
+          if (mounted && _isPreparingPrint) {
+            setState(() => _isPreparingPrint = false);
+          }
+        }
         _handleClear();
         ref.read(registrationProvider.notifier).getRegistrations();
       }
@@ -409,113 +423,126 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
-      body: Column(
+      body: Stack(
         children: [
-          _TopBar(
-            steps: _steps,
-            currentStep: _currentStep,
-            onBack: () => context.pop(),
+          Column(
+            children: [
+              _TopBar(
+                steps: _steps,
+                currentStep: _currentStep,
+                onBack: () => context.pop(),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (ctx, constraints) {
+                    final wide = constraints.maxWidth >= Breakpoints.desktop;
+
+                    final rightPanel = RightPanel(
+                      step3num: 3,
+                      step4num: 4,
+                      step5num: 5,
+                      selectedFees: _fees
+                          .where((f) => _selectedFeeIds.contains(f.feeId))
+                          .toList(),
+                      onRemove: _toggleFee,
+                      academicYear: _academicYearFromFees,
+                      registrationDate: _fmtDate(DateTime.now()),
+                      studentName: _selectedStudent?.fullName,
+                      tuitionFee: _tuitionFee,
+                      totalFee: _totalFee,
+                      discount: _selectedDiscountAmount,
+                      netFee: _netFee,
+                      discounts: _discounts,
+                      selectedDiscountId: _selectedDiscountId,
+                      onDiscountChanged: (v) =>
+                          setState(() => _selectedDiscountId = v),
+                      otherFee: _otherFeeAmount,
+                      otherFeeLabel: _otherFeeLabel,
+                      otherFeeController: _otherFeeCtrl,
+                      onOtherFeeChanged: (value) => setState(() {
+                        _otherFeeAmount = _parseAmount(value);
+                      }),
+                      scholarshipStatusByFee: _scholarshipStatusByFee,
+                      onScholarshipChanged: (feeId, status) =>
+                          _setScholarshipStatus(feeId, status),
+                      autoRenew: _autoRenew,
+                      onAutoRenewChanged: (v) => setState(() => _autoRenew = v),
+                      canSave:
+                          _selectedStudent != null && _selectedFeeIds.isNotEmpty,
+                      discountEnabled:
+                          _selectedStudent != null && _selectedFeeIds.isNotEmpty,
+                      onSave: _handleSave,
+                      onPrint: () {},
+                      onCancel: _handleClear,
+                    );
+
+                    final mainContent = SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(20, 20, wide ? 12 : 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _Step1Section(
+                            currentStep: _currentStep,
+                            searchQuery: _searchQuery,
+                            searchCtrl: _searchCtrl,
+                            students: _searchResults,
+                            selectedStudent: _selectedStudent,
+                            onQueryChanged: (v) =>
+                                setState(() => _searchQuery = v),
+                            onPickStudent: _pickStudent,
+                            onClearStudent: _handleClear,
+                            onAddStudent: _openAddStudentDialog,
+                          ),
+                          const SizedBox(height: 16),
+                          SelectSubjectSection(
+                            categories: _categories,
+                            selectedCategory: _selectedCategory,
+                            allFees: _fees,
+                            filteredFees: _filteredFees,
+                            selectedFeeIds: _selectedFeeIds,
+                            isLoading: _isLoadingFees,
+                            enabled: _selectedStudent != null,
+                            onCategoryChanged: (c) =>
+                                setState(() => _selectedCategory = c),
+                            onToggleFee: _toggleFee,
+                          ),
+                          if (!wide) ...[const SizedBox(height: 20), rightPanel],
+                        ],
+                      ),
+                    );
+
+                    if (wide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: mainContent),
+                          Container(
+                            width: 620,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEEF2FF),
+                            ),
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
+                              child: rightPanel,
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return mainContent;
+                  },
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final wide = constraints.maxWidth >= Breakpoints.desktop;
-
-                final rightPanel = RightPanel(
-                  step3num: 3,
-                  step4num: 4,
-                  step5num: 5,
-                  selectedFees: _fees
-                      .where((f) => _selectedFeeIds.contains(f.feeId))
-                      .toList(),
-                  onRemove: _toggleFee,
-                  academicYear: _academicYearFromFees,
-                  registrationDate: _fmtDate(DateTime.now()),
-                  studentName: _selectedStudent?.fullName,
-                  tuitionFee: _tuitionFee,
-                  totalFee: _totalFee,
-                  discount: _selectedDiscountAmount,
-                  netFee: _netFee,
-                  discounts: _discounts,
-                  selectedDiscountId: _selectedDiscountId,
-                  onDiscountChanged: (v) =>
-                      setState(() => _selectedDiscountId = v),
-                  otherFee: _otherFeeAmount,
-                  otherFeeLabel: _otherFeeLabel,
-                  otherFeeController: _otherFeeCtrl,
-                  onOtherFeeChanged: (value) => setState(() {
-                    _otherFeeAmount = _parseAmount(value);
-                  }),
-                  scholarshipStatusByFee: _scholarshipStatusByFee,
-                  onScholarshipChanged: (feeId, status) =>
-                      _setScholarshipStatus(feeId, status),
-                  autoRenew: _autoRenew,
-                  onAutoRenewChanged: (v) => setState(() => _autoRenew = v),
-                  canSave:
-                      _selectedStudent != null && _selectedFeeIds.isNotEmpty,
-                  discountEnabled:
-                      _selectedStudent != null && _selectedFeeIds.isNotEmpty,
-                  onSave: _handleSave,
-                  onPrint: () {},
-                  onCancel: _handleClear,
-                );
-
-                final mainContent = SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(20, 20, wide ? 12 : 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Step1Section(
-                        currentStep: _currentStep,
-                        searchQuery: _searchQuery,
-                        searchCtrl: _searchCtrl,
-                        students: _searchResults,
-                        selectedStudent: _selectedStudent,
-                        onQueryChanged: (v) => setState(() => _searchQuery = v),
-                        onPickStudent: _pickStudent,
-                        onClearStudent: _handleClear,
-                        onAddStudent: _openAddStudentDialog,
-                      ),
-                      const SizedBox(height: 16),
-                      SelectSubjectSection(
-                        categories: _categories,
-                        selectedCategory: _selectedCategory,
-                        allFees: _fees,
-                        filteredFees: _filteredFees,
-                        selectedFeeIds: _selectedFeeIds,
-                        isLoading: _isLoadingFees,
-                        enabled: _selectedStudent != null,
-                        onCategoryChanged: (c) =>
-                            setState(() => _selectedCategory = c),
-                        onToggleFee: _toggleFee,
-                      ),
-                      if (!wide) ...[const SizedBox(height: 20), rightPanel],
-                    ],
-                  ),
-                );
-
-                if (wide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: mainContent),
-                      Container(
-                        width: 620,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEEF2FF),
-                        ),
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
-                          child: rightPanel,
-                        ),
-                      ),
-                    ],
-                  );
-                }
-                return mainContent;
-              },
+          if (_isPreparingPrint)
+            const PrintPreparationOverlay(
+              icon: Icons.print_rounded,
+              title: 'ກຳລັງໂຫຼດ....',
+              message:
+                  'ລະບົບກຳລັງດຶງຂໍ້ມູນການລົງທະບຽນ ແລະ ສ້າງ preview ໃຫ້ພ້ອມສຳລັບການພິມ',
+              hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
             ),
-          ),
         ],
       ),
     );
@@ -523,18 +550,18 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
 
   String _fmtDate(DateTime dt) {
     const m = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
+      'ມັງກອນ',
+      'ກຸມພາ',
+      'ມີນາ',
+      'ເມສາ',
+      'ພຶດສະພາ',
+      'ມິຖຸນາ',
+      'ກໍລະກົດ',
+      'ສິງຫາ',
+      'ກັນຍາ',
+      'ຕຸລາ',
+      'ພະຈິກ',
+      'ທັນວາ',
     ];
     return '${m[dt.month - 1]} ${dt.day}, ${dt.year}';
   }

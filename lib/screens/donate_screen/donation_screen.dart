@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import '../../core/constants/fixed_donation_categories.dart';
 import '../../core/utils/format_utils.dart';
 import '../../models/donation_model.dart';
 import '../../models/donor_model.dart';
-import '../../models/donation_category_model.dart';
 import '../../models/unit_model.dart';
 import '../../providers/donation_provider.dart';
 import '../../providers/donor_provider.dart';
-import '../../providers/donation_category_provider.dart';
 import '../../providers/unit_provider.dart';
 import '../../widgets/app_alerts.dart';
 import '../../widgets/success_overlay.dart';
@@ -38,7 +37,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
   final _dateController = TextEditingController();
 
   String? _selectedDonorId;
-  int? _selectedCategoryId;
+  String? _selectedCategory;
   int? _selectedUnitId;
   bool _autoValidate = false;
 
@@ -46,7 +45,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     return _nameController.text.trim().isNotEmpty &&
         _amountController.text.trim().isNotEmpty &&
         _selectedDonorId != null &&
-        _selectedCategoryId != null &&
+        _selectedCategory != null &&
         _selectedUnitId != null;
   }
 
@@ -58,7 +57,6 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       ref.read(donationProvider.notifier).getDonations();
       ref.read(donorProvider.notifier).getDonors();
-      ref.read(donationCategoryProvider.notifier).getDonationCategories();
       ref.read(unitProvider.notifier).getUnits();
       if (mounted) {
         final error = ref.read(donationProvider).error;
@@ -71,8 +69,6 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
 
   List<DonationModel> get _donations => ref.watch(donationProvider).donations;
   List<DonorModel> get _donors => ref.watch(donorProvider).donors;
-  List<DonationCategoryModel> get _categories =>
-      ref.watch(donationCategoryProvider).donationCategories;
   List<UnitModel> get _units => ref.watch(unitProvider).units;
 
   String _formatDateForApi(String dateStr) {
@@ -98,7 +94,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     _dateController.text =
         '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     _selectedDonorId = null;
-    _selectedCategoryId = null;
+    _selectedCategory = null;
     _selectedUnitId = null;
     selectedItem = null;
     isEditing = false;
@@ -107,10 +103,9 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
 
   void _openAdd() async {
     _resetForm();
-    if (_donors.isEmpty || _categories.isEmpty || _units.isEmpty) {
+    if (_donors.isEmpty || _units.isEmpty) {
       await Future.wait([
         ref.read(donorProvider.notifier).getDonors(),
-        ref.read(donationCategoryProvider.notifier).getDonationCategories(),
         ref.read(unitProvider.notifier).getUnits(),
       ]);
     }
@@ -123,14 +118,12 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
   void _openEdit(DonationModel item) async {
     await Future.wait([
       ref.read(donorProvider.notifier).getDonors(),
-      ref.read(donationCategoryProvider.notifier).getDonationCategories(),
       ref.read(unitProvider.notifier).getUnits(),
     ]);
 
     await Future.delayed(const Duration(milliseconds: 100));
 
     final donors = ref.read(donorProvider).donors;
-    final categories = ref.read(donationCategoryProvider).donationCategories;
     final units = ref.read(unitProvider).units;
 
     _nameController.text = item.donationName;
@@ -144,18 +137,15 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     );
     _selectedDonorId = matchingDonor.donorId;
 
-    final matchingCategory = categories.firstWhere(
-      (c) => c.donationCategory == item.donationCategory,
-      orElse: () => categories.first,
-    );
-    _selectedCategoryId = matchingCategory.donationCategoryId;
+    _selectedCategory = fixedDonationCategories.contains(item.donationCategory)
+        ? item.donationCategory
+        : inKindDonationCategory;
 
     final matchingUnit = units.firstWhere(
       (u) => u.unitName == item.unitName,
       orElse: () => units.first,
     );
     _selectedUnitId = matchingUnit.unitId;
-
 
     setState(() {
       selectedItem = item;
@@ -174,7 +164,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     }
 
     if (_selectedDonorId == null ||
-        _selectedCategoryId == null ||
+        _selectedCategory == null ||
         _selectedUnitId == null) {
       return;
     }
@@ -190,15 +180,12 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     if (isEditing && selectedItem != null) {
       final request = DonationUpdateRequest(
         donorId: _selectedDonorId!,
-        donationCategoryId: _selectedCategoryId!,
+        donationCategory: _selectedCategory!,
         donationName: _nameController.text.trim(),
         amount: amount,
         unitId: _selectedUnitId,
         description: _descriptionController.text.trim(),
         donationDate: _formatDateForApi(_dateController.text),
-      );
-      print(
-        'DEBUG: Updating donation - original: ${_dateController.text}, formatted: ${_formatDateForApi(_dateController.text)}',
       );
       success = await ref
           .read(donationProvider.notifier)
@@ -206,19 +193,20 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
     } else {
       final request = DonationRequest(
         donorId: _selectedDonorId!,
-        donationCategoryId: _selectedCategoryId!,
+        donationCategory: _selectedCategory!,
         donationName: _nameController.text.trim(),
         amount: amount,
         unitId: _selectedUnitId,
         description: _descriptionController.text.trim(),
         donationDate: _formatDateForApi(_dateController.text),
       );
-      print(
-        'DEBUG: Creating donation - original: ${_dateController.text}, formatted: ${_formatDateForApi(_dateController.text)}',
-      );
       success = await ref
           .read(donationProvider.notifier)
           .createDonation(request);
+    }
+
+    if (!mounted) {
+      return;
     }
 
     if (success) {
@@ -344,8 +332,6 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
           child: Skeletonizer(
             enabled: isLoading,
             child: AppDataTable<DonationModel>(
-              title: 'ການບໍລິຈາກ',
-              subtitle: 'ທັງໝົດ ${_donations.length} ລາຍການ',
               columns: columns,
               onAdd: _openAdd,
               onEdit: _openEdit,
@@ -430,20 +416,20 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: AppDropdown<int>(
+                      child: AppDropdown<String>(
                         label: 'ປະເພດການບໍລິຈາກ',
                         hint: 'ເລືອກປະເພດ',
-                        value: _selectedCategoryId,
-                        items: _categories
+                        value: _selectedCategory,
+                        items: fixedDonationCategories
                             .map(
-                              (c) => DropdownMenuItem(
-                                value: c.donationCategoryId,
-                                child: Text(c.donationCategory),
+                              (category) => DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
                               ),
                             )
                             .toList(),
                         onChanged: (v) => setState(() {
-                          _selectedCategoryId = v;
+                          _selectedCategory = v;
                         }),
                         required: true,
                       ),

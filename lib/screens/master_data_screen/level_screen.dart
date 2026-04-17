@@ -187,8 +187,6 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: AppDataTable<Level>(
-                  title: 'ຂໍ້ມູນຊັ້ນ/ລະະດັບ',
-                  subtitle: 'ທັງໝົດ ${items.length} ລາຍການ',
                   data: isLoading ? _getMockLevels() : items,
                   columns: columns,
                   onAdd: _openAdd,

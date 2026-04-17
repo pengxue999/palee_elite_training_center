@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
-import 'dart:typed_data';
 import '../../core/utils/finance_report_printer.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/format_utils.dart';
+import '../../core/utils/report_export_action_helper.dart';
 import '../../models/report_models.dart';
 import '../../providers/report_provider.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_dropdown.dart';
-import '../../widgets/app_toast.dart';
 import '../../widgets/loading_widget.dart';
 import '../../widgets/empty_widget.dart';
 import '../../widgets/print_preparation_overlay.dart';
@@ -84,47 +81,21 @@ class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
       return;
     }
 
-    final data = await ref
-        .read(reportProvider.notifier)
-        .exportFinanceReport(year: _selectedYear,);
-
-    if (data != null && mounted) {
-      final csvData = utf8.encode(data.data);
-      final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...csvData]);
-      final FileSaveLocation? result = await getSaveLocation(
-        suggestedName: data.filename,
-        acceptedTypeGroups: [
-          const XTypeGroup(label: 'CSV Files', extensions: ['csv']),
-        ],
-      );
-
-      if (result != null) {
-        String path = result.path;
-        if (!path.toLowerCase().endsWith('.csv')) {
-          path += '.csv';
-        }
-
-        try {
-          final xFile = XFile.fromData(
-            bytes,
-            name: data.filename,
-            mimeType: 'text/csv',
-          );
-          await xFile.saveTo(path);
-
-          if (mounted) {
-            AppToast.success(context, 'ບັນທຶກສຳເລັດ ຢູ່ທີ: $path');
-          }
-        } catch (e) {
-          if (mounted) {
-            AppToast.error(context, 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ: $e');
-          }
-        }
-      }
-    } else if (mounted) {
-      final error = ref.read(reportProvider).financeError;
-      AppToast.error(context, error ?? 'ບໍ່ສາມາດ Export ຂໍ້ມູນໄດ້');
-    }
+    await ReportExportActionHelper.exportReport(
+      context: context,
+      reportTitle: _activeTab == 'income' ? 'ລາຍການລາຍຮັບ' : 'ລາຍການລາຍຈ່າຍ',
+      requestExport: (format) {
+        return ref
+            .read(reportProvider.notifier)
+            .exportFinanceReport(
+              year: _selectedYear,
+              tab: _activeTab,
+              format: format,
+            );
+      },
+      resolveErrorMessage: () =>
+          ref.read(reportProvider).financeError ?? 'ບໍ່ສາມາດ Export ຂໍ້ມູນໄດ້',
+    );
   }
 
   Future<void> _handlePdfPrint(FinanceReportData data) async {
@@ -169,7 +140,7 @@ class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
     }
   }
 
-  bool get _canExportExcel => _activeTab == 'income' || _activeTab == 'expense';
+  bool get _canExportExcel => true;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +188,7 @@ class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
                     AppButton(
                       label: reportState.isFinanceExporting
                           ? 'ກຳລັງບັນທຶກ...'
-                          : 'ບັນທຶກ Excel',
+                          : 'ສົ່ງອອກເປັນ Excel',
                       icon: Icons.download_rounded,
                       variant: AppButtonVariant.success,
                       onPressed:
@@ -722,8 +693,9 @@ class _ReportFinanceScreenState extends ConsumerState<ReportFinanceScreen> {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= data.length)
+                        if (index < 0 || index >= data.length) {
                           return const SizedBox.shrink();
+                        }
                         return Text(
                           '${data[index].year}',
                           style: TextStyle(

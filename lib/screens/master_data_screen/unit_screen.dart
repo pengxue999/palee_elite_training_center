@@ -147,8 +147,6 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: AppDataTable<UnitModel>(
-                  title: 'ຂໍ້ມູນຫົວໜ່ວຍ',
-                  subtitle: 'ທັງໝົດ ${state.units.length} ຫົວໜ່ວຍ',
                   data: isLoading ? _getMockUnits() : state.units,
                   columns: columns,
                   onAdd: _openAdd,

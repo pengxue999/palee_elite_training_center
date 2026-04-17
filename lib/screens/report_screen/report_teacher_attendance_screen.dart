@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/utils/format_utils.dart';
+import 'package:palee_elite_training_center/core/utils/report_export_action_helper.dart';
 import 'package:palee_elite_training_center/core/utils/teacher_attendance_report_printer.dart';
 import 'package:palee_elite_training_center/models/teaching_log_model.dart';
 import 'package:palee_elite_training_center/models/teacher_model.dart';
@@ -12,12 +13,8 @@ import 'package:palee_elite_training_center/services/teacher_service.dart';
 import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
-import 'package:palee_elite_training_center/widgets/app_toast.dart';
 import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
 import 'package:palee_elite_training_center/widgets/summary_card.dart';
-import 'package:file_selector/file_selector.dart';
-import 'dart:typed_data';
-import 'dart:convert';
 
 class ReportTeacherAttendanceScreen extends ConsumerStatefulWidget {
   const ReportTeacherAttendanceScreen({super.key});
@@ -141,58 +138,30 @@ class _ReportTeacherAttendanceScreenState
     _loadData();
   }
 
-  Future<void> _exportToCsv() async {
+  Future<void> _handleExport() async {
     final academicId = _getCurrentAcademicId();
     final monthStr = _selectedMonth != null
         ? '${_selectedMonth!.year}-${_selectedMonth!.month.toString().padLeft(2, '0')}'
         : null;
 
-    final exportData = await ref
-        .read(reportProvider.notifier)
-        .exportTeacherAttendanceReport(
-          academicId: academicId,
-          month: monthStr,
-          status: _statusFilter != 'ທັງໝົດ' ? _statusFilter : null,
-          teacherId: _selectedTeacherId,
-        );
-
-    if (exportData != null && mounted) {
-      final csvData = utf8.encode(exportData.data);
-      final bytes = Uint8List.fromList([0xEF, 0xBB, 0xBF, ...csvData]);
-      final FileSaveLocation? result = await getSaveLocation(
-        suggestedName: exportData.filename,
-        acceptedTypeGroups: [
-          const XTypeGroup(label: 'CSV Files', extensions: ['csv']),
-        ],
-      );
-
-      if (result != null) {
-        String path = result.path;
-        if (!path.toLowerCase().endsWith('.csv')) {
-          path += '.csv';
-        }
-
-        try {
-          final xFile = XFile.fromData(
-            bytes,
-            name: exportData.filename,
-            mimeType: 'text/csv',
-          );
-          await xFile.saveTo(path);
-
-          if (mounted) {
-            AppToast.success(context, 'ບັນທຶກສຳເລັດ ຢູ່ທີ: $path');
-          }
-        } catch (e) {
-          if (mounted) {
-            AppToast.error(context, 'ເກີດຂໍ້ຜິດພາດໃນການບັນທຶກ: $e');
-          }
-        }
-      }
-    } else if (mounted) {
-      final error = ref.read(reportProvider).teacherAttendanceError;
-      AppToast.error(context, error ?? 'ບໍ່ສາມາດ Export ໄດ້');
-    }
+    await ReportExportActionHelper.exportReport(
+      context: context,
+      reportTitle: 'ລາຍງານການຂື້ນສອນຂອງອາຈານ',
+      requestExport: (format) {
+        return ref
+            .read(reportProvider.notifier)
+            .exportTeacherAttendanceReport(
+              academicId: academicId,
+              month: monthStr,
+              status: _statusFilter != 'ທັງໝົດ' ? _statusFilter : null,
+              teacherId: _selectedTeacherId,
+              format: format,
+            );
+      },
+      resolveErrorMessage: () =>
+          ref.read(reportProvider).teacherAttendanceError ??
+          'ບໍ່ສາມາດ Export ໄດ້',
+    );
   }
 
   List<TeachingLogModel> get _filteredLogs {
@@ -308,6 +277,7 @@ class _ReportTeacherAttendanceScreenState
             ),
             const SizedBox(height: 16),
             _buildFilterSection(hasAttendanceData),
+            const SizedBox(height: 16),
             Expanded(child: _buildDataTable()),
           ],
         ),
@@ -316,7 +286,7 @@ class _ReportTeacherAttendanceScreenState
             icon: Icons.print_rounded,
             title: 'ກຳລັງໂຫຼດ...',
             message:
-                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານການເຂົ້າສອນອາຈານ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານການຂື້ນສອນຂອງອາຈານ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
             hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
           ),
       ],
@@ -397,13 +367,13 @@ class _ReportTeacherAttendanceScreenState
               const Spacer(),
               if (hasAttendanceData) ...[
                 AppButton(
-                  label: 'ບັນທຶກ Excel',
+                  label: 'ສົ່ງອອກເປັນ Excel',
                   icon: Icons.download_rounded,
                   variant: AppButtonVariant.success,
                   size: AppButtonSize.medium,
                   onPressed: _isPreparingPdfPrint || _isLoading
                       ? null
-                      : _exportToCsv,
+                      : _handleExport,
                 ),
                 const SizedBox(width: 12),
                 AppButton(
@@ -641,10 +611,6 @@ class _ReportTeacherAttendanceScreenState
     ];
 
     return AppDataTable<TeachingLogModel>(
-      title: '',
-      subtitle: filteredLogs.isEmpty
-          ? 'ບໍ່ມີຂໍ້ມູນ'
-          : 'ທັງໝົດ ${filteredLogs.length} ລາຍການ',
       data: filteredLogs,
       columns: columns,
       isLoading: _isLoading,

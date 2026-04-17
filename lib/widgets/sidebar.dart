@@ -152,13 +152,6 @@ class _SidebarState extends ConsumerState<Sidebar> {
           tableName: 'expense_category',
         ),
         MenuItemModel(
-          id: 'donation-types',
-          label: 'ຂໍ້ມູນປະເພດການບໍລິຈາກ',
-          icon: Icons.card_giftcard_rounded,
-          path: '/donation-types',
-          tableName: 'donation_category',
-        ),
-        MenuItemModel(
           id: 'units',
           label: 'ຂໍ້ມູນຫົວໜ່ວຍ',
           icon: Icons.straighten_rounded,
@@ -254,10 +247,10 @@ class _SidebarState extends ConsumerState<Sidebar> {
       },
     ),
     MenuItemModel(
-      id: 'assessment',
+      id: 'evaluate-student',
       label: 'ປະເມີນຜົນການຮຽນ',
       icon: Icons.emoji_events_rounded,
-      path: '/assessment',
+      path: '/evaluate-student',
       tableName: 'evaluation',
       displayFields: [
         'evaluation_id',
@@ -340,7 +333,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
 
   static const Set<String> _teacherAllowedMenuIds = {
     'teaching-track',
-    'assessment',
+    'evaluate-student',
   };
 
   List<MenuItemModel> _getFilteredMenuItems(String? role) {
@@ -569,16 +562,13 @@ class _SidebarState extends ConsumerState<Sidebar> {
                       style: TextStyle(color: Colors.black54),
                     ),
                   ),
-                  TextButton(
+                  FilledButton(
                     onPressed: () async {
                       Navigator.of(ctx).pop();
                       await ref.read(authProvider.notifier).logout();
                       await windowManager.close();
                     },
-                    child: const Text(
-                      'ຕົກລົງ',
-                      style: TextStyle(color: Colors.black),
-                    ),
+                    child: const Text('ຕົກລົງ'),
                   ),
                 ],
               ),

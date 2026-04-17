@@ -12,6 +12,7 @@ import 'package:palee_elite_training_center/screens/registration_screen/registra
 import 'package:palee_elite_training_center/screens/registration_screen/new_registration_screen.dart';
 import 'package:palee_elite_training_center/screens/report_screen/reports_screen.dart';
 import 'package:palee_elite_training_center/screens/report_screen/report_student_screen.dart';
+import 'package:palee_elite_training_center/screens/evaluate_student_screen/evaluate_student_screen.dart';
 import 'package:palee_elite_training_center/screens/salary_payment_screen/salary_payment_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/subject_details_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/subjects_screen.dart'
@@ -21,7 +22,6 @@ import 'package:palee_elite_training_center/screens/master_data_screen/discounts
 import 'package:palee_elite_training_center/screens/master_data_screen/fees_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/expense_types_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/donors_screen.dart';
-import 'package:palee_elite_training_center/screens/master_data_screen/donation_types_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/unit_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/dormitory_screen.dart';
 import 'package:palee_elite_training_center/screens/master_data_screen/users_screen.dart';
@@ -53,7 +53,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       if (isLoggedIn && authState.role == 'teacher') {
-        final allowedRoutes = ['/teaching-tracking', '/assessment'];
+        final allowedRoutes = [
+          '/teaching-tracking',
+          '/evaluate-student',
+          '/assessment',
+        ];
         if (!allowedRoutes.contains(state.matchedLocation)) {
           return '/teaching-tracking';
         }
@@ -127,6 +131,18 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'teaching-tracking',
             pageBuilder: (context, state) =>
                 const MaterialPage(child: TeachingTrackingScreen()),
+          ),
+
+          GoRoute(
+            path: '/evaluate-student',
+            name: 'evaluate-student',
+            pageBuilder: (context, state) =>
+                const MaterialPage(child: EvaluateStudentScreen()),
+          ),
+
+          GoRoute(
+            path: '/assessment',
+            redirect: (context, state) => '/evaluate-student',
           ),
 
           GoRoute(
@@ -219,12 +235,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'donors',
             pageBuilder: (context, state) =>
                 const MaterialPage(child: DonorsScreen()),
-          ),
-          GoRoute(
-            path: '/donation-types',
-            name: 'donation-types',
-            pageBuilder: (context, state) =>
-                const MaterialPage(child: DonationTypesScreen()),
           ),
           GoRoute(
             path: '/units',

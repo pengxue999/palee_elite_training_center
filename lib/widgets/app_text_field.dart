@@ -43,6 +43,56 @@ class _ThousandsSeparatorFormatter extends TextInputFormatter {
   }
 }
 
+class _NumericRangeFormatter extends TextInputFormatter {
+  final bool allowDecimal;
+  final double? maxValue;
+
+  _NumericRangeFormatter({required this.allowDecimal, this.maxValue});
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text;
+
+    if (text.isEmpty) {
+      return newValue;
+    }
+
+    final hasInvalidCharacter = text.runes.any((char) {
+      final isDigit = char >= 48 && char <= 57;
+      final isDecimalPoint = allowDecimal && char == 46;
+      return !isDigit && !isDecimalPoint;
+    });
+    if (hasInvalidCharacter) {
+      return oldValue;
+    }
+
+    if (!allowDecimal && text.contains('.')) {
+      return oldValue;
+    }
+
+    final decimalPoints = '.'.allMatches(text).length;
+    if (decimalPoints > 1) {
+      return oldValue;
+    }
+
+    if (text == '.') {
+      return allowDecimal ? newValue : oldValue;
+    }
+
+    if (maxValue != null) {
+      final value = double.tryParse(text);
+      if (value != null && value > maxValue!) {
+        return oldValue;
+      }
+    }
+
+    return newValue;
+  }
+}
+
 class AppTextField extends StatefulWidget {
   final String? label;
   final String? hint;
@@ -141,9 +191,16 @@ class _AppTextFieldState extends State<AppTextField>
     }
     switch (widget.digitOnly) {
       case DigitOnly.integer:
-        return [FilteringTextInputFormatter.digitsOnly];
+        return [
+          _NumericRangeFormatter(
+            allowDecimal: false,
+            maxValue: widget.maxValue,
+          ),
+        ];
       case DigitOnly.decimal:
-        return [FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d*'))];
+        return [
+          _NumericRangeFormatter(allowDecimal: true, maxValue: widget.maxValue),
+        ];
       case null:
         return [];
     }

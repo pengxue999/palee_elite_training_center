@@ -192,8 +192,6 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
             children: [
               Expanded(
                 child: AppDataTable<DiscountModel>(
-                  title: 'ສ່ວນຫຼຸດ',
-                  subtitle: 'ທັງໝົດ ${state.discounts.length} ລາຍການ',
                   data: isLoading ? _getMockDiscounts() : state.discounts,
                   columns: columns,
                   onAdd: _openAdd,
