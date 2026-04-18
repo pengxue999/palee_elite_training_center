@@ -1,0 +1,89 @@
+name: Build Windows App
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'Unable to resolve release version from tag name.'
+          }
+
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "INSTALLER_NAME=PaleeEliteTrainingCenter-Setup.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release --build-name $env:APP_VERSION --build-number $env:GITHUB_RUN_NUMBER
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=$env:APP_VERSION" `
+            "installer.iss"
+
+      - name: Generate version metadata
+        shell: pwsh
+        run: |
+          $versionJson = @{
+            version = $env:APP_VERSION
+            url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$env:INSTALLER_NAME"
+            notes = "Windows release $env:APP_VERSION"
+          } | ConvertTo-Json
+
+          Set-Content -Path version.json -Value $versionJson -Encoding utf8
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Output/${{ env.INSTALLER_NAME }}
+            version.json
+
+      - name: Commit version metadata to main
+        shell: pwsh
+        run: |
+          $versionJson = Get-Content -Path version.json -Raw
+          git restore version.json
+          git fetch origin main
+          git checkout main
+          git config user.email "action@github.com"
+          git config user.name "GitHub Actions"
+          Set-Content -Path version.json -Value $versionJson -Encoding utf8
+          git add version.json
+
+          if (git diff --cached --quiet) {
+            Write-Host 'version.json is already up to date.'
+            exit 0
+          }
+
+          git commit -m "Update version.json for $env:APP_VERSION"
+          git push origin main

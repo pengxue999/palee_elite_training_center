@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
 import '../providers/auth_provider.dart';
+import 'update_settings_dialog.dart';
 import 'sidebar.dart';
 
 class AppLayout extends ConsumerStatefulWidget {
@@ -139,7 +140,12 @@ class _AppLayoutState extends ConsumerState<AppLayout> {
                 color: AppColors.mutedForeground,
                 size: 18,
               ),
-              onPressed: () {},
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (dialogContext) => const UpdateSettingsDialog(),
+                );
+              },
             ),
           ),
           const SizedBox(width: 12),

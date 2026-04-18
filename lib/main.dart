@@ -47,7 +47,7 @@ class MyApp extends ConsumerWidget {
       builder: (context, child) {
         return DefaultTextStyle(
           style: const TextStyle(
-            fontFamily: 'NotoSansLao',
+            fontFamily: 'NotoSans Lao',
             color: AppColors.foreground,
           ),
           child: child!,
