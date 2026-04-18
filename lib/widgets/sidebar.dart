@@ -568,7 +568,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
                   FilledButton(
                     onPressed: () async {
                       Navigator.of(ctx).pop();
-                      await windowManager.destroy();
+                      await windowManager.close();
                     },
                     child: const Text('ຕົກລົງ'),
                   ),

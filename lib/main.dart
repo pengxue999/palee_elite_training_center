@@ -6,13 +6,6 @@ import 'package:palee_elite_training_center/core/constants/app_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/router/app_router.dart';
 
-class AppWindowListener extends WindowListener {
-  @override
-  void onWindowClose() async {
-    await windowManager.destroy();
-  }
-}
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -23,10 +16,6 @@ void main() async {
       await WindowManager.instance.show();
       await WindowManager.instance.focus();
     });
-
-    WindowManager.instance.setPreventClose(true);
-
-    WindowManager.instance.addListener(AppWindowListener());
   }
 
   runApp(const ProviderScope(child: MyApp()));
