@@ -72,11 +72,10 @@ jobs:
         shell: pwsh
         run: |
           $versionJson = Get-Content -Path version.json -Raw
-          git restore version.json
-          git fetch origin main
-          git checkout main
           git config user.email "action@github.com"
           git config user.name "GitHub Actions"
+            git fetch origin main
+            git checkout -B main origin/main
           Set-Content -Path version.json -Value $versionJson -Encoding utf8
           git add version.json
 
