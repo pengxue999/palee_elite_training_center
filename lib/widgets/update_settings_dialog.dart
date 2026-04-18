@@ -96,7 +96,8 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
 
     setState(() {
       _isInstalling = true;
-      _statusMessage = 'ກຳລັງດາວໂຫຼດ installer...';
+      _statusMessage =
+          'ກຳລັງດາວໂຫຼດ installer... ຫຼັງຈາກນີ້ app ຈະປິດ ແລະ Windows ຈະເປີດໜ້າຕິດຕັ້ງໃຫ້.';
       _progress = 0;
     });
 
@@ -268,6 +269,11 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'ເມື່ອກົດອັບເດດ ແອັບຈະປິດ ແລະ installer ຈະເປີດຂຶ້ນ. ຖ້າ Windows ຖາມສິດ admin ໃຫ້ກົດອະນຸຍາດ.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),

@@ -48,7 +48,11 @@ Future<void> downloadAndInstallUpdate(
     '@echo off',
     'setlocal',
     'ping 127.0.0.1 -n 3 > nul',
-    'start "" "$escapedInstallerPath" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-',
+    'powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '
+        '$escapedInstallerPath'
+        ' -ArgumentList '
+        '/SP-'
+        ' -Verb RunAs"',
     'exit /b 0',
   ].join('\r\n');
 
