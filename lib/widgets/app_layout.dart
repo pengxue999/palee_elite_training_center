@@ -130,14 +130,14 @@ class _AppLayoutState extends ConsumerState<AppLayout> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: AppColors.muted,
+              color: AppColors.accent,
               borderRadius: BorderRadius.circular(10),
             ),
             child: IconButton(
               padding: EdgeInsets.zero,
               icon: const Icon(
-                Icons.settings_outlined,
-                color: AppColors.mutedForeground,
+                Icons.update,
+                color: AppColors.accentForeground,
                 size: 18,
               ),
               onPressed: () {

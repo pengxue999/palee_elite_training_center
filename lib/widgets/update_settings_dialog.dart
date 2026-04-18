@@ -249,7 +249,7 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Version ${info.version}',
+            'ເວີຊັນ ${info.version}',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
