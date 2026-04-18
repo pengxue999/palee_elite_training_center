@@ -125,7 +125,7 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('System Update'),
+      title: const Text('ອັບເດດລະບົບ'),
       content: SizedBox(
         width: 420,
         child: Column(
@@ -135,7 +135,7 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
             _buildVersionRow(),
             const SizedBox(height: 16),
             Text(
-              'ເຊື່ອມກັບ GitHub Releases ເພື່ອກວດສອບ version ແລະດາວໂຫຼດ installer ໃໝ່.',
+              'ທ່ານສາມາດເພື່ອກວດສອບເວີຊັນ ແລະ ອັບເດດໃໝ່.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
@@ -208,7 +208,7 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
       children: [
         const Icon(Icons.verified_outlined, size: 18),
         const SizedBox(width: 8),
-        Text('Current version: ${_currentVersion ?? 'Unknown'}'),
+        Text('ເວີຊັນປັດຈຸບັນ: ${_currentVersion ?? 'Unknown'}'),
       ],
     );
   }
