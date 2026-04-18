@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/constants/app_colors.dart';
 import '../core/utils/responsive_utils.dart';
 import '../core/utils/format_utils.dart';
 import '../providers/auth_provider.dart';
 import '../providers/academic_year_provider.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/report_provider.dart';
 import '../models/academic_year_model.dart';
+import '../models/report_models.dart';
+import '../widgets/app_card.dart';
 import '../widgets/custom_card.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -32,47 +37,111 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         .read(dashboardProvider.notifier)
         .setAvailableAcademicYears(academicYears);
 
-    await ref.read(dashboardProvider.notifier).loadDashboardStats();
+    final academicId = ref
+        .read(dashboardProvider)
+        .selectedAcademicYear
+        ?.academicId;
+
+    await Future.wait([
+      ref
+          .read(dashboardProvider.notifier)
+          .loadDashboardStats(academicId: academicId),
+      ref
+          .read(reportProvider.notifier)
+          .getPopularSubjectsReport(academicId: academicId),
+    ]);
+  }
+
+  Future<void> _refreshDashboard() async {
+    final academicId = ref
+        .read(dashboardProvider)
+        .selectedAcademicYear
+        ?.academicId;
+
+    await Future.wait([
+      ref.read(dashboardProvider.notifier).refreshStats(),
+      ref
+          .read(reportProvider.notifier)
+          .getPopularSubjectsReport(academicId: academicId),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     final padding = context.responsivePadding;
-    final auth = ref.watch(authProvider);
-    final dashboard = ref.watch(dashboardProvider);
-    final academicYears = ref.watch(academicYearProvider).academicYears;
-    final userName = auth.userName ?? 'ຜູ້ໃຊ້';
 
     return RefreshIndicator(
-      onRefresh: () async {
-        await ref.read(dashboardProvider.notifier).refreshStats();
-      },
+      onRefresh: _refreshDashboard,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildWelcomeBanner(context, userName, dashboard),
+            Consumer(
+              builder: (context, ref, _) {
+                final userName =
+                    ref.watch(authProvider.select((state) => state.userName)) ??
+                    'ຜູ້ໃຊ້';
+                final academicYearText = ref.watch(
+                  dashboardProvider.select(
+                    (state) => state.currentAcademicYear,
+                  ),
+                );
+                return _buildWelcomeBanner(context, userName, academicYearText);
+              },
+            ),
             const SizedBox(height: 28),
-            _buildSectionHeaderWithFilter(
-              'ສະຖິຕິພາບລວມ',
-              academicYears,
-              dashboard,
+            Consumer(
+              builder: (context, ref, _) {
+                final academicYears = ref.watch(
+                  academicYearProvider.select((state) => state.academicYears),
+                );
+                final selectedAcademicYear = ref.watch(
+                  dashboardProvider.select(
+                    (state) => state.selectedAcademicYear,
+                  ),
+                );
+                return _buildSectionHeaderWithFilter(
+                  'ພາບລວມ',
+                  academicYears,
+                  selectedAcademicYear,
+                );
+              },
             ),
             const SizedBox(height: 16),
-            if (dashboard.isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (dashboard.error != null)
-              _buildErrorWidget(dashboard.error!)
-            else
-              _buildStatsGrid(context, dashboard),
-            const SizedBox(height: 32),
+            Consumer(
+              builder: (context, ref, _) {
+                final dashboard = ref.watch(
+                  dashboardProvider.select((state) => state),
+                );
+
+                if (dashboard.isLoading) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                if (dashboard.error != null) {
+                  return _buildErrorWidget(dashboard.error!);
+                }
+
+                return _buildStatsGrid(context, dashboard);
+              },
+            ),
+            const SizedBox(height: 16),
+            Consumer(
+              builder: (context, ref, _) {
+                final reportState = ref.watch(
+                  reportProvider.select((state) => state),
+                );
+                return _buildPopularSubjectsSection(context, reportState);
+              },
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -113,7 +182,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildSectionHeaderWithFilter(
     String title,
     List<AcademicYearModel> academicYears,
-    DashboardState dashboard,
+    AcademicYearModel? selectedAcademicYear,
   ) {
     return Row(
       children: [
@@ -141,19 +210,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ),
         const Spacer(),
         if (academicYears.isNotEmpty)
-          _buildAcademicYearDropdown(academicYears, dashboard),
+          _buildAcademicYearDropdown(academicYears, selectedAcademicYear),
       ],
     );
   }
 
   Widget _buildAcademicYearDropdown(
     List<AcademicYearModel> academicYears,
-    DashboardState dashboard,
+    AcademicYearModel? selectedAcademicYear,
   ) {
-    final selectedYear = dashboard.selectedAcademicYear;
-    final selectedFromList = selectedYear != null
+    final selectedFromList = selectedAcademicYear != null
         ? academicYears.firstWhere(
-            (year) => year.academicId == selectedYear.academicId,
+            (year) => year.academicId == selectedAcademicYear.academicId,
             orElse: () => academicYears.first,
           )
         : null;
@@ -183,6 +251,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           onChanged: (AcademicYearModel? value) {
             if (value != null) {
               ref.read(dashboardProvider.notifier).selectAcademicYear(value);
+              ref
+                  .read(reportProvider.notifier)
+                  .getPopularSubjectsReport(academicId: value.academicId);
             }
           },
         ),
@@ -193,10 +264,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildWelcomeBanner(
     BuildContext context,
     String userName,
-    DashboardState dashboard,
+    String academicYearText,
   ) {
-    final academicYearText = dashboard.currentAcademicYear;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -209,7 +278,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2563EB).withOpacity(0.35),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.35),
             blurRadius: 28,
             spreadRadius: -4,
             offset: const Offset(0, 12),
@@ -226,7 +295,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -238,7 +307,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.04),
+                color: Colors.white.withValues(alpha: 0.04),
               ),
             ),
           ),
@@ -255,10 +324,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           width: 0.5,
                         ),
                       ),
@@ -287,7 +356,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Text(
                       'ລະບົບບໍລິຫານຈັດການສູນປາລີບຳລຸງນັກຮຽນເກັ່ງ',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                         height: 1.4,
@@ -303,10 +372,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     width: 0.5,
                   ),
                 ),
@@ -316,7 +385,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     Text(
                       'ວັນທີ',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.65),
+                        color: Colors.white.withValues(alpha: 0.65),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -426,6 +495,465 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           }).toList(),
         );
       },
+    );
+  }
+
+  Widget _buildPopularSubjectsSection(
+    BuildContext context,
+    ReportState reportState,
+  ) {
+    final data = reportState.popularSubjectsData;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (reportState.isPopularSubjectsLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (reportState.popularSubjectsError != null)
+          _buildCompactErrorCard(reportState.popularSubjectsError!)
+        else if (data == null || data.subjects.isEmpty)
+          _buildEmptyCard('ບໍ່ພົບຂໍ້ມູນວິຊາຍອດນິຍົມ')
+        else
+          Column(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 1100;
+
+                  if (isCompact) {
+                    return Column(
+                      children: [
+                        _buildSubjectPieChartCard(data),
+                        const SizedBox(height: 16),
+                        _buildCategoryBarChartCard(data),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildSubjectPieChartCard(data)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildCategoryBarChartCard(data)),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildTopSubjectsCard(data),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2563EB), Color(0xFF4338CA)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF111827),
+            letterSpacing: -0.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactErrorCard(String message) {
+    return AppCard(
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.destructive,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.destructive,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard(String message) {
+    return AppCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.insights_outlined,
+              color: AppColors.mutedForeground,
+              size: 42,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.mutedForeground,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubjectPieChartCard(PopularSubjectsReportData data) {
+    final subjects = List<PopularSubjectItem>.from(data.subjects)
+      ..sort((a, b) => b.studentCount.compareTo(a.studentCount));
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ສັດສ່ວນນັກຮຽນຕາມວິຊາ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 300,
+            child: PieChart(
+              PieChartData(
+                sections: subjects.asMap().entries.map((entry) {
+                  final item = entry.value;
+                  return PieChartSectionData(
+                    color: AppColors
+                        .chartColors[entry.key % AppColors.chartColors.length],
+                    value: item.studentCount.toDouble(),
+                    title: '${item.percentage.toStringAsFixed(1)}%',
+                    radius: 150,
+                    titleStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                }).toList(),
+                sectionsSpace: 1,
+                centerSpaceRadius: 2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 14,
+            runSpacing: 8,
+            children: subjects.asMap().entries.map((entry) {
+              final item = entry.value;
+              final color = AppColors
+                  .chartColors[entry.key % AppColors.chartColors.length];
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${item.subjectName} (${item.studentCount} ຄົນ)',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.foreground,
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryBarChartCard(PopularSubjectsReportData data) {
+    final categoryStats = data.categories;
+    final sortedEntries = categoryStats.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxY = categoryStats.values.reduce((a, b) => a > b ? a : b);
+    final interval = maxY > 0 ? maxY / 5 : 10.0;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ສະຖິຕິຕາມໝວດວິຊາ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 300,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY > 0 ? maxY * 1.2 : 100,
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final item = sortedEntries[groupIndex];
+                      return BarTooltipItem(
+                        '${item.key}\n',
+                        const TextStyle(color: Colors.white, fontSize: 12),
+                        children: [
+                          TextSpan(
+                            text: '${item.value} ຄົນ',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const SizedBox.shrink();
+                        return Text(
+                          '${value.toInt()} ຄົນ',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedForeground,
+                          ),
+                        );
+                      },
+                      interval: interval,
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= sortedEntries.length) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          sortedEntries[index].key,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.foreground,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  horizontalInterval: interval,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(color: AppColors.border, strokeWidth: 1);
+                  },
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: sortedEntries.asMap().entries.map((entry) {
+                  return BarChartGroupData(
+                    x: entry.key,
+                    barRods: [
+                      BarChartRodData(
+                        toY: entry.value.value.toDouble(),
+                        color: AppColors.primary,
+                        width: 36,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopSubjectsCard(PopularSubjectsReportData data) {
+    final sortedSubjects = List<PopularSubjectItem>.from(data.subjects)
+      ..sort((a, b) => b.studentCount.compareTo(a.studentCount));
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '5 ວິຊານິຍົມອັນດັບສູງສຸດ',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.foreground,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...sortedSubjects.take(5).toList().asMap().entries.map((entry) {
+            final rank = entry.key + 1;
+            final subject = entry.value;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: rank == sortedSubjects.take(5).length ? 0 : 12,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: rank <= 3
+                          ? AppColors.primary
+                          : AppColors.infoLight,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '$rank',
+                        style: TextStyle(
+                          color: rank <= 3
+                              ? Colors.white
+                              : AppColors.foreground,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              subject.subjectName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryLight,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                subject.subjectCategory,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        LinearProgressIndicator(
+                          value: subject.percentage / 100,
+                          minHeight: 8,
+                          backgroundColor: AppColors.muted,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${subject.studentCount} ຄົນ',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        '${subject.percentage.toStringAsFixed(1)}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }

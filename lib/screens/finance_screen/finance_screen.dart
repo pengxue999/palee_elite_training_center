@@ -131,8 +131,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
                   _formData['amount']?.toString().replaceAll(',', '') ?? '';
               final amount = double.tryParse(amountText) ?? 0;
               if (amount <= 0) return false;
-              if (!isIncome && _formData['expense_category_id'] == null)
+              if (!isIncome && _formData['expense_category_id'] == null) {
                 return false;
+              }
               return true;
             }
 
@@ -388,9 +389,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
     final expenseCategoryState = ref.watch(expenseCategoryProvider);
 
     final isLoading = incomeState.isLoading || expenseState.isLoading;
-    final totalIncome = incomeState.totalIncome;
-    final totalExpense = expenseState.totalExpense;
-    final balance = totalIncome - totalExpense;
 
     return Scaffold(
       backgroundColor: AppColors.background,

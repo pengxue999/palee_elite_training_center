@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/constant.dart';
 
@@ -194,13 +193,6 @@ class HttpHelper {
   }
 
   http.Response _handleResponse(http.Response response) {
-    if (kDebugMode) {
-      final contentType = response.headers['content-type'] ?? '';
-      final responsePreview = contentType.contains('application/pdf')
-          ? '<binary pdf ${response.bodyBytes.length} bytes>'
-          : response.body;
-      print('HTTP Response [${response.statusCode}]: $responsePreview');
-    }
     return response;
   }
 
@@ -210,8 +202,6 @@ class HttpHelper {
   }
 
   Exception _handleError(dynamic error) {
-    if (kDebugMode) print('HTTP Error: $error');
-
     if (error is SocketException) {
       return Exception('ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບເຊີບເວີໄດ້: ${error.message}');
     } else if (error is HttpException) {

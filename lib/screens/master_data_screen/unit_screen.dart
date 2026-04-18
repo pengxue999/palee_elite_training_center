@@ -5,7 +5,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/unit_model.dart';
 import '../../providers/unit_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -75,10 +74,6 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
       success = await ref.read(unitProvider.notifier).createUnit(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດຫົວໜ່ວຍສຳເລັດ' : 'ເພີ່ມຫົວໜ່ວຍສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -110,7 +105,6 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບຫົວໜ່ວຍສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -204,6 +198,7 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
+                isLoading: isLoading,
                 onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
@@ -249,6 +244,7 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

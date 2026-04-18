@@ -30,9 +30,9 @@ extension ResponsiveContext on BuildContext {
     T? desktop,
     T? wideDesktop,
   }) {
-    if (this.isWideDesktop && wideDesktop != null) return wideDesktop;
-    if (this.isDesktop && desktop != null) return desktop;
-    if (this.isTablet && tablet != null) return tablet;
+    if (isWideDesktop && wideDesktop != null) return wideDesktop;
+    if (isDesktop && desktop != null) return desktop;
+    if (isTablet && tablet != null) return tablet;
     return mobile;
   }
 

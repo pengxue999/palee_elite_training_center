@@ -10,8 +10,8 @@ class EvaluationScoreEntryStudent {
   final String subjectName;
   final double feeAmount;
   final double? score;
-  final String? ranking;
-  final String? prize;
+  final int? ranking;
+  final double? prize;
 
   const EvaluationScoreEntryStudent({
     required this.regisDetailId,
@@ -42,10 +42,26 @@ class EvaluationScoreEntryStudent {
       subjectName: json['subject_name'] as String? ?? '',
       feeAmount: _toDouble(json['fee_amount']) ?? 0,
       score: _toDouble(json['score']),
-      ranking: json['ranking'] as String?,
-      prize: json['prize'] as String?,
+      ranking: _toInt(json['ranking']),
+      prize: _toDouble(json['prize']),
     );
   }
+}
+
+int? _toInt(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
 }
 
 double? _toDouble(dynamic value) {
@@ -148,7 +164,7 @@ class EvaluationScoreSheet {
 class EvaluationScoreUpdateItem {
   final int regisDetailId;
   final double? score;
-  final String? prize;
+  final double? prize;
 
   const EvaluationScoreUpdateItem({
     required this.regisDetailId,
@@ -320,8 +336,8 @@ class AssessmentReportItem {
   final String subjectName;
   final String levelName;
   final double score;
-  final String ranking;
-  final String? prize;
+  final int ranking;
+  final double? prize;
 
   const AssessmentReportItem({
     required this.evaluationId,
@@ -362,8 +378,8 @@ class AssessmentReportItem {
       subjectName: json['subject_name'] as String? ?? '',
       levelName: json['level_name'] as String? ?? '',
       score: _toDouble(json['score']) ?? 0,
-      ranking: json['ranking'] as String? ?? '',
-      prize: json['prize'] as String?,
+      ranking: _toInt(json['ranking']) ?? 0,
+      prize: _toDouble(json['prize']),
     );
   }
 

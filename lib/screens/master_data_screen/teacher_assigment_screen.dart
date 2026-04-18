@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/widgets/api_error_handler.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/responsive_utils.dart';
 import '../../core/utils/format_utils.dart';
+import '../../models/subject_detail_model.dart';
 import '../../models/teacher_assignment_model.dart';
 import '../../providers/teacher_assignment_provider.dart';
 import '../../providers/teacher_provider.dart';
 import '../../providers/subject_detail_provider.dart';
 import '../../providers/academic_year_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_dialog.dart';
@@ -138,10 +139,6 @@ class _TeacherAssigmentScreenState
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດການມອບໝາຍສຳເລັດ' : 'ເພີ່ມການມອບໝາຍສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -173,7 +170,6 @@ class _TeacherAssigmentScreenState
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບການມອບໝາຍສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -303,7 +299,7 @@ class _TeacherAssigmentScreenState
         _hourlyRateController.text.isNotEmpty;
   }
 
-  Widget _buildSubjectGrid(subjectDetails) {
+  Widget _buildSubjectGrid(List<SubjectDetailModel> subjectDetails) {
     final subjects = subjectDetails.map((sd) => sd.subjectName).toSet().toList()
       ..sort();
 
@@ -313,6 +309,340 @@ class _TeacherAssigmentScreenState
               .where((sd) => sd.subjectName == _selectedSubjectFilter)
               .toList();
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < Breakpoints.desktop;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            isCompact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [_buildSectionTitle()],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: _buildSectionTitle()),
+                      const SizedBox(width: 16),
+                    ],
+                  ),
+            const SizedBox(height: 16),
+            if (subjects.isNotEmpty) ...[
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _buildSubjectFilterChip(
+                    label: 'ທັງໝົດ',
+                    isSelected: _selectedSubjectFilter == null,
+                    onTap: () => setState(() => _selectedSubjectFilter = null),
+                    showCheck: false,
+                  ),
+                  ...subjects.map((subject) {
+                    return _buildSubjectFilterChip(
+                      label: subject,
+                      isSelected: _selectedSubjectFilter == subject,
+                      onTap: () =>
+                          setState(() => _selectedSubjectFilter = subject),
+                    );
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            SizedBox(
+              height: 380,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFFF8FBFF),
+                        AppColors.primaryLight.withOpacity(0.28),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: subjectDetails.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.primary.withOpacity(
+                                        0.08,
+                                      ),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.menu_book_outlined,
+                                  size: 28,
+                                  color: AppColors.primary.withOpacity(0.75),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'ບໍ່ມີຂໍ້ມູນວິຊາ',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.foreground,
+                                  fontFamily: 'NotoSansLao',
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'ເພີ່ມຂໍ້ມູນວິຊາແລະລະດັບກ່ອນ ແລ້ວຈຶ່ງຈະສາມາດກຳນົດການສອນໄດ້',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.mutedForeground,
+                                  fontFamily: 'NotoSansLao',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : filteredDetails.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.filter_list_off,
+                                size: 28,
+                                color: AppColors.mutedForeground,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'ບໍ່ພົບລາຍການສຳລັບວິຊານີ້',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.mutedForeground,
+                                  fontFamily: 'NotoSansLao',
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : LayoutBuilder(
+                          builder: (context, gridConstraints) {
+                            final width = gridConstraints.maxWidth;
+                            int crossAxisCount = 4;
+                            if (width < 620) {
+                              crossAxisCount = 1;
+                            } else if (width < Breakpoints.desktop) {
+                              crossAxisCount = 4;
+                            } else if (width < 1240) {
+                              crossAxisCount = 6;
+                            }
+
+                            return GridView.builder(
+                              padding: const EdgeInsets.all(12),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossAxisCount,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    mainAxisExtent: 112,
+                                  ),
+                              itemCount: filteredDetails.length,
+                              itemBuilder: (context, index) {
+                                final sd = filteredDetails[index];
+                                final isSelected =
+                                    sd.subjectDetailId ==
+                                    _selectedSubjectDetailId;
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () => setState(
+                                      () => _selectedSubjectDetailId =
+                                          sd.subjectDetailId,
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 220,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        gradient: isSelected
+                                            ? const LinearGradient(
+                                                colors: [
+                                                  Color(0xFFEAF3FF),
+                                                  Color(0xFFDDEBFF),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              )
+                                            : const LinearGradient(
+                                                colors: [
+                                                  Colors.white,
+                                                  Color(0xFFF8FAFC),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : AppColors.border,
+                                          width: isSelected ? 1.8 : 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isSelected
+                                                ? AppColors.primary.withOpacity(
+                                                    0.16,
+                                                  )
+                                                : const Color(
+                                                    0xFF0F172A,
+                                                  ).withOpacity(0.05),
+                                            blurRadius: isSelected ? 18 : 10,
+                                            offset: Offset(
+                                              0,
+                                              isSelected ? 10 : 4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? AppColors.primary
+                                                              .withOpacity(0.12)
+                                                        : AppColors.background,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          999,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    sd.subjectName,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: isSelected
+                                                          ? AppColors
+                                                                .primaryDark
+                                                          : AppColors
+                                                                .mutedForeground,
+                                                      fontFamily: 'NotoSansLao',
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              AnimatedContainer(
+                                                duration: const Duration(
+                                                  milliseconds: 220,
+                                                ),
+                                                width: 28,
+                                                height: 28,
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? AppColors.primary
+                                                      : Colors.white,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: isSelected
+                                                        ? AppColors.primary
+                                                        : AppColors.border,
+                                                  ),
+                                                ),
+                                                child: Icon(
+                                                  isSelected
+                                                      ? Icons.check_rounded
+                                                      : Icons
+                                                            .arrow_forward_rounded,
+                                                  size: 16,
+                                                  color: isSelected
+                                                      ? Colors.white
+                                                      : AppColors
+                                                            .mutedForeground,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            sd.levelName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 19,
+                                              fontWeight: FontWeight.w800,
+                                              color: isSelected
+                                                  ? AppColors.primaryDark
+                                                  : AppColors.foreground,
+                                              letterSpacing: 0.1,
+                                              fontFamily: 'NotoSansLao',
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            isSelected
+                                                ? 'ກຳລັງເລືອກຢູ່'
+                                                : 'ກົດເພື່ອເລືອກວິຊານີ້',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                  : AppColors.mutedForeground,
+                                              fontFamily: 'NotoSansLao',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionTitle() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -321,17 +651,17 @@ class _TeacherAssigmentScreenState
             Text(
               'ເລືອກວິຊາ ແລະ ຊັ້ນຮຽນ/ລະດັບ',
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
                 letterSpacing: 0.1,
-                color: AppColors.foreground.withOpacity(0.85),
+                color: AppColors.foreground,
                 fontFamily: 'NotoSansLao',
               ),
             ),
             Text(
               ' *',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.destructive,
                 fontFamily: 'NotoSansLao',
@@ -339,248 +669,67 @@ class _TeacherAssigmentScreenState
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (subjects.isNotEmpty)
-          Container(
-            height: 48,
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: subjects.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  final isSelected = _selectedSubjectFilter == null;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(
-                        'ທັງໝົດ',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? Colors.white
-                              : AppColors.foreground,
-                          fontFamily: 'NotoSansLao',
-                        ),
-                      ),
-                      selected: isSelected,
-                      onSelected: (_) =>
-                          setState(() => _selectedSubjectFilter = null),
-                      selectedColor: AppColors.primary,
-                      backgroundColor: AppColors.muted,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.border,
-                        ),
-                      ),
-                      showCheckmark: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  );
-                }
-                final subject = subjects[index - 1];
-                final isSelected = _selectedSubjectFilter == subject;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(
-                      subject,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.foreground,
-                        fontFamily: 'NotoSansLao',
-                      ),
-                    ),
-                    selected: isSelected,
-                    onSelected: (_) =>
-                        setState(() => _selectedSubjectFilter = subject),
-                    selectedColor: AppColors.primary,
-                    backgroundColor: AppColors.muted,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                    showCheckmark: true,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        Container(
-          height: 400,
-          decoration: BoxDecoration(
-            color: AppColors.input,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _selectedSubjectDetailId != null
-                  ? AppColors.primary.withOpacity(0.3)
-                  : AppColors.border.withOpacity(0.5),
-              width: _selectedSubjectDetailId != null ? 1.5 : 1,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: subjectDetails.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.menu_book_outlined,
-                          size: 32,
-                          color: AppColors.mutedForeground.withOpacity(0.4),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'ບໍ່ມີຂໍ້ມູນວິຊາ',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.mutedForeground.withOpacity(0.6),
-                            fontFamily: 'NotoSansLao',
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(12),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          childAspectRatio: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                    itemCount: filteredDetails.length,
-                    itemBuilder: (context, index) {
-                      final sd = filteredDetails[index];
-                      final isSelected =
-                          sd.subjectDetailId == _selectedSubjectDetailId;
+      ],
+    );
+  }
 
-                      return InkWell(
-                        onTap: () => setState(
-                          () => _selectedSubjectDetailId = sd.subjectDetailId,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primary.withOpacity(0.1)
-                                : AppColors.card,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.primary
-                                  : AppColors.border.withOpacity(0.5),
-                              width: isSelected ? 2 : 1,
-                            ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.primary.withOpacity(
-                                        0.15,
-                                      ),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        sd.subjectName,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.w500,
-                                          color: isSelected
-                                              ? AppColors.primary
-                                              : AppColors.foreground
-                                                    .withOpacity(0.8),
-                                          fontFamily: 'NotoSansLao',
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        sd.levelName,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: isSelected
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                          color: isSelected
-                                              ? AppColors.primary.withOpacity(
-                                                  0.8,
-                                                )
-                                              : AppColors.mutedForeground,
-                                          fontFamily: 'NotoSansLao',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              if (isSelected)
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      size: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+  Widget _buildSubjectFilterChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    bool showCheck = true,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? null : Colors.white,
+            gradient: isSelected
+                ? const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: isSelected ? Colors.transparent : AppColors.border,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? AppColors.primary.withOpacity(0.18)
+                    : const Color(0xFF0F172A).withOpacity(0.04),
+                blurRadius: isSelected ? 14 : 8,
+                offset: Offset(0, isSelected ? 8 : 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showCheck && isSelected) ...[
+                const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : AppColors.foreground,
+                  fontFamily: 'NotoSansLao',
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -622,70 +771,74 @@ class _TeacherAssigmentScreenState
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppDropdown<String>(
-                label: 'ອາຈານ',
-                hint: 'ເລືອກອາຈານ',
-                value: teachers.any((t) => t.teacherId == _selectedTeacherId)
-                    ? _selectedTeacherId
-                    : null,
-                required: true,
-                items: teachers
-                    .map(
-                      (t) => DropdownMenuItem(
-                        value: t.teacherId,
-                        child: Text(t.fullName),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppDropdown<String>(
+                  label: 'ອາຈານ',
+                  hint: 'ເລືອກອາຈານ',
+                  value: teachers.any((t) => t.teacherId == _selectedTeacherId)
+                      ? _selectedTeacherId
+                      : null,
+                  required: true,
+                  items: teachers
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t.teacherId,
+                          child: Text(t.fullName),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedTeacherId = v),
+                ),
+                const SizedBox(height: 16),
+                _buildSubjectGrid(subjectDetails),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppDropdown<String>(
+                        label: 'ສົກຮຽນ',
+                        hint: 'ເລືອກສົກຮຽນ',
+                        value:
+                            academicYears.any(
+                              (a) => a.academicId == _selectedAcademicId,
+                            )
+                            ? _selectedAcademicId
+                            : null,
+                        required: true,
+                        items: academicYears
+                            .map(
+                              (a) => DropdownMenuItem(
+                                value: a.academicId,
+                                child: Text(a.academicYear),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setState(() => _selectedAcademicId = v),
                       ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedTeacherId = v),
-              ),
-              const SizedBox(height: 16),
-              _buildSubjectGrid(subjectDetails),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppDropdown<String>(
-                      label: 'ສົກຮຽນ',
-                      hint: 'ເລືອກສົກຮຽນ',
-                      value:
-                          academicYears.any(
-                            (a) => a.academicId == _selectedAcademicId,
-                          )
-                          ? _selectedAcademicId
-                          : null,
-                      required: true,
-                      items: academicYears
-                          .map(
-                            (a) => DropdownMenuItem(
-                              value: a.academicId,
-                              child: Text(a.academicYear),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedAcademicId = v),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: AppTextField(
-                      label: 'ອັດຕາຄ່າສອນຕໍ່ຊົ່ວໂມງ',
-                      hint: 'ເຊັ່ນ: 50,000',
-                      controller: _hourlyRateController,
-                      keyboardType: TextInputType.number,
-                      digitOnly: DigitOnly.integer,
-                      thousandsSeparator: true,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      required: true,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: AppTextField(
+                        label: 'ອັດຕາຄ່າສອນຕໍ່ຊົ່ວໂມງ',
+                        hint: 'ເຊັ່ນ: 50,000',
+                        controller: _hourlyRateController,
+                        keyboardType: TextInputType.number,
+                        digitOnly: DigitOnly.integer,
+                        thousandsSeparator: true,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        required: true,
+                        onChanged: (_) => setState(() {}),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

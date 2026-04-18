@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/utils/assessment_report_printer.dart';
+import 'package:palee_elite_training_center/core/utils/format_utils.dart';
 import 'package:palee_elite_training_center/core/utils/report_export_action_helper.dart';
 import 'package:palee_elite_training_center/models/evaluation_model.dart';
 import 'package:palee_elite_training_center/providers/assessment_report_provider.dart';
@@ -38,6 +39,8 @@ class _ReportAssessmentScreenState
   String? _selectedLevelId;
   String? _selectedRanking;
   bool _isPreparingPdfPrint = false;
+
+  int? get _selectedRankingValue => int.tryParse(_selectedRanking ?? '');
 
   String _semesterLabel(String semester) {
     switch (semester) {
@@ -154,7 +157,8 @@ class _ReportAssessmentScreenState
       if (_selectedLevelId != null && item.levelId != _selectedLevelId) {
         return false;
       }
-      if (_selectedRanking != null && item.ranking != _selectedRanking) {
+      if (_selectedRankingValue != null &&
+          item.ranking != _selectedRankingValue) {
         return false;
       }
       return true;
@@ -211,13 +215,15 @@ class _ReportAssessmentScreenState
         key: 'ranking',
         label: 'ອັນດັບ',
         flex: 1,
-        render: (value, row) => Text(row.ranking),
+        render: (value, row) => Text(row.ranking.toString()),
       ),
       DataColumnDef<AssessmentReportItem>(
         key: 'prize',
         label: 'ລາງວັນ',
         flex: 2,
-        render: (value, row) => Text(row.prize ?? '-'),
+        render: (value, row) => Text(
+          row.prize == null ? '-' : FormatUtils.formatCurrency(row.prize!),
+        ),
       ),
       DataColumnDef<AssessmentReportItem>(
         key: 'districtName',

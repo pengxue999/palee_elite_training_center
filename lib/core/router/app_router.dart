@@ -34,25 +34,29 @@ import '../../widgets/app_toast.dart' show toastNavigatorKey;
 import '../../providers/auth_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authState = ref.watch(
+    authProvider.select(
+      (state) => (state.isInitializing, state.isAuthenticated, state.role),
+    ),
+  );
 
   return GoRouter(
     navigatorKey: toastNavigatorKey,
     initialLocation: '/login',
     debugLogDiagnostics: false,
     redirect: (context, state) {
-      if (authState.isInitializing) return null;
+      if (authState.$1) return null;
 
-      final isLoggedIn = authState.isAuthenticated;
+      final isLoggedIn = authState.$2;
       final isLoginPage = state.matchedLocation == '/login';
 
       if (!isLoggedIn && !isLoginPage) return '/login';
       if (isLoggedIn && isLoginPage) {
-        if (authState.role == 'teacher') return '/teaching-tracking';
+        if (authState.$3 == 'teacher') return '/teaching-tracking';
         return '/';
       }
 
-      if (isLoggedIn && authState.role == 'teacher') {
+      if (isLoggedIn && authState.$3 == 'teacher') {
         final allowedRoutes = [
           '/teaching-tracking',
           '/evaluate-student',

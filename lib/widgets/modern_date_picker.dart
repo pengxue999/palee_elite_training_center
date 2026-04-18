@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 
-
 class ModernDatePicker extends StatefulWidget {
   final DateTime initialDate;
   final DateTime firstDate;
   final DateTime lastDate;
 
   const ModernDatePicker({
+    super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
   });
 
   @override
-  State<ModernDatePicker> createState() =>
-      ModernDatePickerState();
+  State<ModernDatePicker> createState() => ModernDatePickerState();
 }
 
 class ModernDatePickerState extends State<ModernDatePicker> {
@@ -63,7 +62,9 @@ class ModernDatePickerState extends State<ModernDatePicker> {
       0,
     ).day;
     final cells = <DateTime?>[];
-    for (int i = 0; i < startOffset; i++) cells.add(null);
+    for (int i = 0; i < startOffset; i++) {
+      cells.add(null);
+    }
     for (int d = 1; d <= daysInMonth; d++) {
       cells.add(DateTime(_focusedMonth.year, _focusedMonth.month, d));
     }
@@ -434,7 +435,6 @@ class _TextBtnState extends State<_TextBtn> {
     );
   }
 }
-
 
 class DateInputFormatter extends TextInputFormatter {
   @override

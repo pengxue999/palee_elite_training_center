@@ -6,7 +6,6 @@ import '../../models/subject_category_model.dart';
 import '../../providers/subject_provider.dart';
 import '../../providers/subject_category_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -97,11 +96,11 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
       success = await notifier.createSubject(request);
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (success) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ແກ້ໄຂວິຊາສຳເລັດ' : 'ເພີ່ມວິຊາສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -132,7 +131,6 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
       }
 
       if (success && mounted) {
-        SuccessOverlay.show(context, message: 'ລຶບວິຊາສຳເລັດ');
         setState(() {
           selectedItem = null;
         });
@@ -222,6 +220,7 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
   }
 
   Widget _buildFormModal(List<SubjectCategoryModel> categories) {
+    final isLoading = ref.watch(subjectProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -247,7 +246,8 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
-                onPressed: _isFormValid ? _save : null,
+                isLoading: isLoading,
+                onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
           ),
@@ -302,6 +302,7 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
 
   Widget _buildDeleteDialog() {
     if (selectedItem == null) return const SizedBox.shrink();
+    final isLoading = ref.watch(subjectProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -328,7 +329,8 @@ class _SubjectsScreenState extends ConsumerState<SubjectsScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
-                onPressed: _delete,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : _delete,
               ),
             ],
           ),

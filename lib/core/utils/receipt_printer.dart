@@ -143,7 +143,8 @@ class _PrintDialogState extends State<_PrintDialog>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
 
-  bool get _useSystemPrintDialog => kIsWeb;
+  bool get _useSystemPrintDialog =>
+      kIsWeb || defaultTargetPlatform == TargetPlatform.windows;
 
   bool _isVirtualPdfPrinter(Printer printer) {
     final normalized = printer.name.toLowerCase();
@@ -245,7 +246,6 @@ class _PrintDialogState extends State<_PrintDialog>
       Navigator.of(context).pop();
       _showSuccessSnackBar('ພິມສຳເລັດ!');
     } catch (e) {
-      debugPrint('Print error: $e');
       if (mounted) {
         setState(() => _printing = false);
         _showErrorSnackBar('ພິມບໍ່ສຳເລັດ: $e');
@@ -293,7 +293,6 @@ class _PrintDialogState extends State<_PrintDialog>
         _showSuccessSnackBar('PDF ບັນທຶກສຳເລັດ: $fileName');
       }
     } catch (e) {
-      debugPrint('Save error: $e');
       if (mounted) {
         setState(() => _printing = false);
         _showErrorSnackBar('ບັນທຶກບໍ່ສຳເລັດ: $e');
@@ -562,51 +561,45 @@ class _PrintDialogState extends State<_PrintDialog>
           right: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
         ),
       ),
-      child: Expanded(
-        child: _loadingPrinters
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: _buildInfoCard(
-                    icon: Icons.sync_rounded,
-                    title: 'ກຳລັງໂຫຼດ printer',
-                    description:
-                        'ລະບົບກຳລັງກວດຄົ້ນລາຍຊື່ເຄື່ອງປິ້ນເຕີທີ່ເຄື່ອງກຳລັງເຊື່ອມຕໍ່ຢູ່.',
-                    caption: 'ກະລຸນາລໍຖ້າສັກຄູ່.',
-                  ),
+      child: _loadingPrinters
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: _buildInfoCard(
+                  icon: Icons.sync_rounded,
+                  title: 'ກຳລັງໂຫຼດ printer',
+                  description:
+                      'ລະບົບກຳລັງກວດຄົ້ນລາຍຊື່ເຄື່ອງປິ້ນເຕີທີ່ເຄື່ອງກຳລັງເຊື່ອມຕໍ່ຢູ່.',
+                  caption: 'ກະລຸນາລໍຖ້າສັກຄູ່.',
                 ),
-              )
-            : _printers.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: _buildInfoCard(
-                    icon: Icons.print_disabled_rounded,
-                    title: 'ບໍ່ພົບເຄື່ອງປິ້ນເຕີ',
-                    description:
-                        'ກະລຸນາກວດສອບການເຊື່ອມຕໍ່ printer ຫຼື ໃຊ້ປຸ່ມບັນທຶກ PDF ແທນກໍໄດ້.',
-                    caption:
-                        'ຖ້າມີ printer ຫຼາຍຕົວ ຈະສາມາດເລືອກໄດ້ຈາກລາຍການນີ້.',
-                  ),
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                itemCount: _printers.length,
-                itemBuilder: (_, i) {
-                  final printer = _printers[i];
-                  final selected = _selectedPrinter?.name == printer.name;
-                  return _PrinterTile(
-                    printer: printer,
-                    selected: selected,
-                    onTap: () => setState(() => _selectedPrinter = printer),
-                  );
-                },
               ),
-      ),
+            )
+          : _printers.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: _buildInfoCard(
+                  icon: Icons.print_disabled_rounded,
+                  title: 'ບໍ່ພົບເຄື່ອງປິ້ນເຕີ',
+                  description:
+                      'ກະລຸນາກວດສອບການເຊື່ອມຕໍ່ printer ຫຼື ໃຊ້ປຸ່ມບັນທຶກ PDF ແທນກໍໄດ້.',
+                  caption: 'ຖ້າມີ printer ຫຼາຍຕົວ ຈະສາມາດເລືອກໄດ້ຈາກລາຍການນີ້.',
+                ),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              itemCount: _printers.length,
+              itemBuilder: (_, i) {
+                final printer = _printers[i];
+                final selected = _selectedPrinter?.name == printer.name;
+                return _PrinterTile(
+                  printer: printer,
+                  selected: selected,
+                  onTap: () => setState(() => _selectedPrinter = printer),
+                );
+              },
+            ),
     );
   }
 
@@ -851,9 +844,7 @@ Future<Uint8List?> _buildPdf({
           discountAmount: discountAmount,
           netFee: netFee,
         );
-      } catch (e) {
-        debugPrint('Falling back to local receipt renderer: $e');
-      }
+      } catch (_) {}
     }
 
     final receiptImageBytes = await _buildReceiptImage(
@@ -885,8 +876,7 @@ Future<Uint8List?> _buildPdf({
     );
 
     return doc.save();
-  } catch (e) {
-    debugPrint('✗ PDF build failed: $e');
+  } catch (_) {
     return null;
   }
 }

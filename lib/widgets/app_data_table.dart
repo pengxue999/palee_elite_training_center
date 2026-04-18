@@ -46,12 +46,19 @@ class AppDataTable<T extends Object> extends StatefulWidget {
 }
 
 class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
+  static const double _rowDividerThickness = 1;
+
   String searchQuery = '';
   int currentPage = 1;
   int _calculatedPageSize = 10;
   double? _lastMeasuredBodyHeight;
+  double? _measuredRowExtent;
   final _hoveredRow = ValueNotifier<int?>(null);
   final _searchController = TextEditingController();
+  final GlobalKey _firstRowKey = GlobalKey();
+
+  double get _estimatedRowExtent =>
+      (_measuredRowExtent ?? widget.rowHeight) + _rowDividerThickness;
 
   @override
   void didUpdateWidget(covariant AppDataTable<T> oldWidget) {
@@ -95,10 +102,9 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
   int get totalPages => (filteredData.length / pageSize).ceil().clamp(1, 999);
 
   void _updatePageSizeForAvailableHeight(double availableHeight) {
-    final calculatedSize = (availableHeight / widget.rowHeight).floor().clamp(
-      1,
-      50,
-    );
+    final calculatedSize = (availableHeight / _estimatedRowExtent)
+        .floor()
+        .clamp(1, 50);
 
     if (calculatedSize != _calculatedPageSize) {
       final newMaxPage = (filteredData.length / calculatedSize).ceil().clamp(
@@ -113,6 +119,29 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
         _calculatedPageSize = calculatedSize;
       });
     }
+  }
+
+  void _measureRenderedRowHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final context = _firstRowKey.currentContext;
+      if (context == null) return;
+
+      final renderBox = context.findRenderObject() as RenderBox?;
+      final measuredHeight = renderBox?.size.height;
+      if (measuredHeight == null || measuredHeight <= 0) return;
+
+      if (_measuredRowExtent != measuredHeight) {
+        setState(() {
+          _measuredRowExtent = measuredHeight;
+        });
+
+        if (_lastMeasuredBodyHeight != null) {
+          _updatePageSizeForAvailableHeight(_lastMeasuredBodyHeight!);
+        }
+      }
+    });
   }
 
   dynamic _getValue(T row, String key) {
@@ -439,11 +468,15 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
     }
 
     return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: data.length,
       separatorBuilder: (_, __) =>
           const Divider(height: 1, color: AppColors.border),
       itemBuilder: (context, index) {
         final row = data[index];
+        if (index == 0) {
+          _measureRenderedRowHeight();
+        }
         return ValueListenableBuilder<int?>(
           valueListenable: _hoveredRow,
           builder: (context, hoveredIndex, _) {
@@ -452,6 +485,7 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
               onEnter: (_) => _hoveredRow.value = index,
               onExit: (_) => _hoveredRow.value = null,
               child: AnimatedContainer(
+                key: index == 0 ? _firstRowKey : null,
                 duration: const Duration(milliseconds: 150),
                 constraints: BoxConstraints(minHeight: widget.rowHeight),
                 decoration: BoxDecoration(
@@ -575,8 +609,8 @@ class _AppDataTableState<T extends Object> extends State<AppDataTable<T>> {
             if (widget.onView != null || widget.onPrint != null)
               const SizedBox(width: 4),
             _ActionChip(
-              icon: Icons.edit_rounded,
-              color: AppColors.info,
+              icon: Icons.edit_square,
+              color: AppColors.primary,
               tooltip: 'ແກ້ໄຂ',
               onTap: () => widget.onEdit!(row),
             ),

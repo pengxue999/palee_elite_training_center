@@ -7,7 +7,6 @@ import '../../providers/subject_detail_provider.dart';
 import '../../providers/subject_provider.dart';
 import '../../providers/level_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_dialog.dart';
@@ -91,12 +90,6 @@ class _SubjectDetailsScreenState extends ConsumerState<SubjectDetailsScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing
-            ? 'ອັບເດດລາຍລະອຽດວິຊາສຳເລັດ'
-            : 'ເພີ່ມລາຍລະອຽດວິຊາສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -128,7 +121,6 @@ class _SubjectDetailsScreenState extends ConsumerState<SubjectDetailsScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບລາຍລະອຽດວິຊາສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -323,8 +315,8 @@ class _SubjectDetailsScreenState extends ConsumerState<SubjectDetailsScreen> {
                 items: levelState.levels
                     .map(
                       (l) => DropdownMenuItem(
-                        value: l?.levelId,
-                        child: Text(l?.levelName ?? ''),
+                        value: l.levelId,
+                        child: Text(l.levelName),
                       ),
                     )
                     .toList(),

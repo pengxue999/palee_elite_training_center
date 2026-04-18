@@ -8,7 +8,6 @@ import '../../../models/tuition_payment_model.dart';
 import '../../../providers/tuition_payment_provider.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_button.dart';
-import '../../../widgets/success_overlay.dart';
 
 class TuitionPaymentDialog extends ConsumerStatefulWidget {
   final RegistrationModel registration;

@@ -33,8 +33,9 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
   static const _borderRadius = 10.0;
 
   Color get _borderColor {
-    if (widget.errorText != null)
+    if (widget.errorText != null) {
       return AppColors.destructive.withOpacity(0.35);
+    }
     if (!widget.enabled) return AppColors.border.withOpacity(0.55);
     return _isOpen
         ? AppColors.primary.withOpacity(0.45)

@@ -4,7 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/academic_year_model.dart';
 import '../../providers/academic_year_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
+
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -108,10 +108,6 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດສົກຮຽນສຳເລັດ' : 'ເພີ່ມສົກຮຽນສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -143,7 +139,6 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
       }
 
       if (success && mounted) {
-        SuccessOverlay.show(context, message: 'ລຶບສົກຮຽນສຳເລັດ');
         setState(() {
           selectedItem = null;
         });
@@ -259,6 +254,7 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
   }
 
   Widget _buildFormModal() {
+    final isLoading = ref.watch(academicYearProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -284,7 +280,8 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save,
-                onPressed: _isFormValid ? _save : null,
+                isLoading: isLoading,
+                onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
           ),
@@ -337,6 +334,7 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
 
   Widget _buildDeleteDialog() {
     if (selectedItem == null) return const SizedBox.shrink();
+    final isLoading = ref.watch(academicYearProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -363,7 +361,8 @@ class _AcademicYearsScreenState extends ConsumerState<AcademicYearsScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete,
                 variant: AppButtonVariant.danger,
-                onPressed: _delete,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : _delete,
               ),
             ],
           ),

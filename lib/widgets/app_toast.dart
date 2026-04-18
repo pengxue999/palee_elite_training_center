@@ -12,7 +12,6 @@ class AppToast {
     VoidCallback? onDismiss,
   }) {
     if (!context.mounted) {
-      debugPrint('AppToast: Context not mounted, cannot show toast');
       return;
     }
 
@@ -20,16 +19,12 @@ class AppToast {
 
     try {
       overlay = Overlay.maybeOf(context);
-    } catch (e) {
-      debugPrint('AppToast: Overlay.of failed: $e');
-    }
+    } catch (_) {}
 
     if (overlay == null) {
       try {
         overlay = Navigator.of(context, rootNavigator: true).overlay;
-      } catch (e) {
-        debugPrint('AppToast: Navigator overlay failed: $e');
-      }
+      } catch (_) {}
     }
 
     if (overlay == null && toastNavigatorKey.currentState != null) {
@@ -37,7 +32,6 @@ class AppToast {
     }
 
     if (overlay == null) {
-      debugPrint('AppToast: No overlay found, cannot show toast');
       return;
     }
 

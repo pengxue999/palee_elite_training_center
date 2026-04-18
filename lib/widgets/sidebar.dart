@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:window_manager/window_manager.dart';
 import '../providers/auth_provider.dart';
 import '../core/utils/responsive_utils.dart';
 
@@ -370,7 +369,12 @@ class _SidebarState extends ConsumerState<Sidebar> {
         color: _sidebarBg,
         border: Border(right: BorderSide(color: _dividerColor, width: 1)),
       ),
-      child: _buildSidebarContent(isExpanded, filteredMenuItems),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showExpandedContent = isExpanded && constraints.maxWidth >= 220;
+          return _buildSidebarContent(showExpandedContent, filteredMenuItems);
+        },
+      ),
     );
   }
 
@@ -418,36 +422,34 @@ class _SidebarState extends ConsumerState<Sidebar> {
         border: Border(bottom: BorderSide(color: _dividerColor, width: 1)),
       ),
       child: isExpanded
-          ? Flexible(
-              child: Row(
-                children: [
-                  logoIcon,
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'ລະບົບບໍລິຫານຈັດການ',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+          ? Row(
+              children: [
+                logoIcon,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'ລະບົບບໍລິຫານຈັດການ',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
                         ),
-                        Text(
-                          'ສູນປາລີບຳລຸງນັກຮຽນເກັ່ງ',
-                          style: TextStyle(color: _textMuted, fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        'ສູນປາລີບຳລຸງນັກຮຽນເກັ່ງ',
+                        style: TextStyle(color: _textMuted, fontSize: 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             )
           : Center(child: logoIcon),
     );
@@ -566,7 +568,6 @@ class _SidebarState extends ConsumerState<Sidebar> {
                     onPressed: () async {
                       Navigator.of(ctx).pop();
                       await ref.read(authProvider.notifier).logout();
-                      await windowManager.close();
                     },
                     child: const Text('ຕົກລົງ'),
                   ),
@@ -678,43 +679,39 @@ class _SidebarState extends ConsumerState<Sidebar> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: isExpanded
-                      ? Flexible(
-                          child: Row(
-                            children: [
-                              _buildIcon(
-                                item.icon,
-                                isActive,
-                                isHovered,
-                                size: depth > 0 ? 18 : 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  item.label,
-                                  style: TextStyle(
-                                    fontSize: depth > 0 ? 14 : 15,
-                                    color: isActive
-                                        ? Colors.black
-                                        : Colors.white,
-                                    fontWeight: isActive
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              AnimatedRotation(
-                                turns: isItemExpanded ? 0.5 : 0,
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 18,
+                      ? Row(
+                          children: [
+                            _buildIcon(
+                              item.icon,
+                              isActive,
+                              isHovered,
+                              size: depth > 0 ? 18 : 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                item.label,
+                                style: TextStyle(
+                                  fontSize: depth > 0 ? 14 : 15,
                                   color: isActive ? Colors.black : Colors.white,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
-                            ],
-                          ),
+                            ),
+                            AnimatedRotation(
+                              turns: isItemExpanded ? 0.5 : 0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: isActive ? Colors.black : Colors.white,
+                              ),
+                            ),
+                          ],
                         )
                       : Center(
                           child: _buildIcon(
@@ -794,41 +791,39 @@ class _SidebarState extends ConsumerState<Sidebar> {
                       : null,
                 ),
                 child: isExpanded
-                    ? Flexible(
-                        child: Row(
-                          children: [
-                            _buildIcon(
-                              item.icon,
-                              isActive,
-                              isHovered,
-                              size: depth > 0 ? 18 : 20,
+                    ? Row(
+                        children: [
+                          _buildIcon(
+                            item.icon,
+                            isActive,
+                            isHovered,
+                            size: depth > 0 ? 18 : 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              style: TextStyle(
+                                fontSize: depth > 0 ? 14 : 15,
+                                color: isActive ? Colors.black : Colors.white,
+                                fontWeight: isActive
+                                    ? FontWeight.w700
+                                    : FontWeight.w400,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                item.label,
-                                style: TextStyle(
-                                  fontSize: depth > 0 ? 14 : 15,
-                                  color: isActive ? Colors.black : Colors.white,
-                                  fontWeight: isActive
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
+                          ),
+                          if (isActive)
+                            Container(
+                              width: 3,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1D4ED8),
+                                borderRadius: BorderRadius.circular(2),
                               ),
                             ),
-                            if (isActive)
-                              Container(
-                                width: 3,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1D4ED8),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                          ],
-                        ),
+                        ],
                       )
                     : Center(
                         child: _buildIcon(

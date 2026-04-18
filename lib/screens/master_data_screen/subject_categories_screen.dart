@@ -4,7 +4,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/subject_category_model.dart';
 import '../../providers/subject_category_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -77,11 +76,11 @@ class _SubjectCategoriesScreenState
       success = await notifier.createSubjectCategory(request);
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (success) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ແກ້ໄຂໝວດວິຊາສຳເລັດ' : 'ເພີ່ມໝວດວິຊາສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -107,14 +106,15 @@ class _SubjectCategoriesScreenState
         selectedItem!.subjectCategoryId,
       );
 
-      if (mounted) {
-        setState(() {
-          showDeleteDialog = false;
-        });
+      if (!mounted) {
+        return;
       }
 
+      setState(() {
+        showDeleteDialog = false;
+      });
+
       if (success) {
-        SuccessOverlay.show(context, message: 'ລຶບໝວດວິຊາສຳເລັດ');
         setState(() {
           selectedItem = null;
         });
@@ -198,11 +198,8 @@ class _SubjectCategoriesScreenState
     );
   }
 
-  bool get _isFormValid {
-    return _nameController.text.isNotEmpty;
-  }
-
   Widget _buildFormModal() {
+    final isLoading = ref.watch(subjectCategoryProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -228,7 +225,10 @@ class _SubjectCategoriesScreenState
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save,
-                onPressed: _isFormValid ? _save : null,
+                isLoading: isLoading,
+                onPressed: (isLoading || _nameController.text.trim().isEmpty)
+                    ? null
+                    : _save,
               ),
             ],
           ),
@@ -250,6 +250,7 @@ class _SubjectCategoriesScreenState
 
   Widget _buildDeleteDialog() {
     if (selectedItem == null) return const SizedBox.shrink();
+    final isLoading = ref.watch(subjectCategoryProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -276,7 +277,8 @@ class _SubjectCategoriesScreenState
                 label: 'ລຶບ',
                 icon: Icons.delete,
                 variant: AppButtonVariant.danger,
-                onPressed: _delete,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : _delete,
               ),
             ],
           ),

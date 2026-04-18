@@ -163,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 children: [
                                   const Text(
                                     'ເຂົ້າສູ່ລະບົບ',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: 'NotoSansLao',
                                       fontSize: 22,
                                       fontWeight: FontWeight.bold,

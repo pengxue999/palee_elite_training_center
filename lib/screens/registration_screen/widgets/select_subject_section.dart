@@ -6,26 +6,18 @@ import 'package:palee_elite_training_center/screens/registration_screen/widgets/
 import 'package:palee_elite_training_center/widgets/section_card.dart';
 
 class SelectSubjectSection extends StatefulWidget {
-  final List<String> categories;
-  final String selectedCategory;
   final List<FeeModel> allFees;
-  final List<FeeModel> filteredFees;
   final Set<String> selectedFeeIds;
   final bool isLoading;
   final bool enabled;
-  final ValueChanged<String> onCategoryChanged;
   final ValueChanged<String> onToggleFee;
 
   const SelectSubjectSection({
     super.key,
-    required this.categories,
-    required this.selectedCategory,
     required this.allFees,
-    required this.filteredFees,
     required this.selectedFeeIds,
     required this.isLoading,
     required this.enabled,
-    required this.onCategoryChanged,
     required this.onToggleFee,
   });
 
@@ -50,32 +42,19 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
   List<String> get _subjectNames => _groupedBySubject.keys.toList()..sort();
 
   void _selectFeeExclusive(String feeId, String subject) {
-    final subjectFees = (_groupedBySubject[subject] ?? []);
-
-    debugPrint('🔍 SELECT_FEE DEBUG:');
-    debugPrint('   FeeId: $feeId');
-    debugPrint('   Subject: $subject');
-    debugPrint('   Currently selected FeeIds: ${widget.selectedFeeIds}');
-    debugPrint(
-      '   Is already selected: ${widget.selectedFeeIds.contains(feeId)}',
-    );
-    debugPrint('   Subject fees count: ${subjectFees.length}');
+    final subjectFees = _groupedBySubject[subject] ?? [];
 
     if (widget.selectedFeeIds.contains(feeId)) {
-      debugPrint('   ✓ DESELECTING (toggling off)');
       widget.onToggleFee(feeId);
       return;
     }
 
-    debugPrint('   ✓ Fees to deselect in this subject:');
     for (final fee in subjectFees) {
       if (fee.feeId != feeId && widget.selectedFeeIds.contains(fee.feeId)) {
-        debugPrint('     - Deselecting: ${fee.feeId} (${fee.levelName})');
         widget.onToggleFee(fee.feeId);
       }
     }
 
-    debugPrint('   ✓ SELECTING new fee: $feeId');
     widget.onToggleFee(feeId);
   }
 

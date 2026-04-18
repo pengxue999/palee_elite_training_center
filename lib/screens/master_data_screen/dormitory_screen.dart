@@ -4,7 +4,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/dormitory_model.dart';
 import '../../providers/dormitory_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_dialog.dart';
@@ -105,10 +104,6 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
           .createDormitory(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດຫໍພັກສຳເລັດ' : 'ເພີ່ມຫໍພັກສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -140,7 +135,6 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບຫໍພັກສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -261,6 +255,7 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
+                isLoading: isLoading,
                 onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
@@ -289,6 +284,7 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
                 digitOnly: DigitOnly.integer,
+                onChanged: (_) => setState(() {}),
               ),
             ],
           ),
@@ -326,6 +322,7 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

@@ -338,6 +338,31 @@ class ReportService {
     return ExportReportResponse.fromJson(_http.handleJson(response));
   }
 
+  Future<ExportReportResponse> exportPopularSubjectLevelDetailReport({
+    String? academicId,
+    required String subjectName,
+    required String subjectCategory,
+    required String levelName,
+    String format = 'excel',
+  }) async {
+    final queryParams = <String, String>{
+      'format': format,
+      'subject_name': subjectName,
+      'subject_category': subjectCategory,
+      'level_name': levelName,
+    };
+    if (academicId != null) queryParams['academic_id'] = academicId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/popular-subjects/level-detail/export?$queryString',
+    );
+    return ExportReportResponse.fromJson(_http.handleJson(response));
+  }
+
   Future<Uint8List> createPopularSubjectsReportPdf({String? academicId}) async {
     final queryParams = <String, String>{};
     if (academicId != null) queryParams['academic_id'] = academicId;
@@ -348,6 +373,37 @@ class ReportService {
 
     final response = await _http.get(
       '/reports/popular-subjects/report-pdf${queryString.isEmpty ? '' : '?$queryString'}',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
+  }
+
+  Future<Uint8List> createPopularSubjectLevelDetailPdf({
+    String? academicId,
+    required String subjectName,
+    required String subjectCategory,
+    required String levelName,
+  }) async {
+    final queryParams = <String, String>{
+      'subject_name': subjectName,
+      'subject_category': subjectCategory,
+      'level_name': levelName,
+    };
+    if (academicId != null) queryParams['academic_id'] = academicId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/popular-subjects/level-detail/report-pdf?$queryString',
       headers: {'Accept': 'application/pdf'},
       timeout: const Duration(seconds: 90),
     );

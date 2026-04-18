@@ -14,9 +14,6 @@ import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toast.dart';
-import '../../widgets/summary_card.dart';
-import '../../widgets/modern_date_picker.dart';
-import '../../core/utils/format_utils.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/teacher_info_card.dart';
 import 'widgets/admin_teacher_summary_card.dart';
@@ -51,7 +48,7 @@ class _TeachingTrackingScreenState
 
   String? _formAssignmentId;
   String _formStatus = 'ຂຶ້ນສອນ';
-  String _statusFilter = 'ທັງໝົດ';
+  final String _statusFilter = 'ທັງໝົດ';
 
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -182,9 +179,7 @@ class _TeachingTrackingScreenState
     }
     try {
       final academicYear = _getCurrentAcademicYear();
-      final logRes = await _logService.getAll(
-        academicYear: academicYear,
-      );
+      final logRes = await _logService.getAll(academicYear: academicYear);
       setState(() {
         _logs = logRes.data;
         _isLoading = false;
@@ -211,9 +206,7 @@ class _TeachingTrackingScreenState
             ? assignRes.data.first.assignmentId
             : null;
       });
-    } catch (e) {
-      debugPrint('Failed to load assignments: $e');
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadAssignmentsAndLogs(String teacherId) async {
@@ -332,7 +325,6 @@ class _TeachingTrackingScreenState
       return;
     }
     final hourly = double.tryParse(_hourlyController.text.trim()) ?? 2.0;
-    final auth = ref.read(authProvider);
     String? assignmentId = _formAssignmentId;
     String status = _formStatus;
     String? remark = _remarkController.text.trim().isEmpty
@@ -449,7 +441,6 @@ class _TeachingTrackingScreenState
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -466,7 +457,6 @@ class _TeachingTrackingScreenState
       ],
     );
   }
-
 
   Widget _buildTeacherPanel(AuthState auth) {
     return Column(
@@ -564,7 +554,6 @@ class _TeachingTrackingScreenState
       ],
     );
   }
-
 
   Widget _buildAdminPanel() {
     final selectedTeacher = _selectedTeacherId != null && _teachers.isNotEmpty
@@ -719,7 +708,6 @@ class _TeachingTrackingScreenState
     );
   }
 
-
   Widget _buildRightPanel(bool isTeacher, AuthState auth) {
     final academicYearState = ref.watch(academicYearProvider);
     String currentAcademicYear = '';
@@ -796,11 +784,13 @@ class _TeachingTrackingScreenState
               ),
             ],
           ),
+          const SizedBox(height: 16),
           Expanded(child: _buildTable(isTeacher)),
         ],
       ),
     );
   }
+
   Widget _buildTable(bool isTeacher) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_errorMessage != null) {
@@ -890,7 +880,7 @@ class _TeachingTrackingScreenState
       ),
       DataColumnDef(
         key: 'hourlyRate',
-        label: 'ຄ່າຈ້າງ/ຊມ',
+        label: 'ຄ່າສອນ/ຊມ',
         render: (v, _) => Text(
           '${_formatNum(double.tryParse(v?.toString() ?? '0') ?? 0)} ກີບ',
           style: const TextStyle(fontSize: 14),
@@ -927,7 +917,6 @@ class _TeachingTrackingScreenState
     final bool showActions = !isTeacher && _selectedTeacherId != null;
 
     return AppDataTable<TeachingLogModel>(
-      title: 'ບັນທຶກການສອນ',
       data: _filteredLogs,
       showActions: showActions,
       onEdit: showActions ? _loadFormFromLog : null,
@@ -935,7 +924,6 @@ class _TeachingTrackingScreenState
       columns: columns,
     );
   }
-
 
   Widget _buildModeToggle() {
     return Row(

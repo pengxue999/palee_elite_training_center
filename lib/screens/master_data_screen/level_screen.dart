@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/models/level_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -77,11 +76,11 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
       success = await ref.read(levelProvider.notifier).createLevel(request);
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (success) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດຊັ້ນຮຽນສຳເລັດ' : 'ເພີ່ມຊັ້ນຮຽນສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -113,7 +112,6 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
       }
 
       if (success && mounted) {
-        SuccessOverlay.show(context, message: 'ລຶບຊັ້ນຮຽນສຳເລັດ');
         setState(() {
           selectedItem = null;
         });
@@ -216,11 +214,8 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
     );
   }
 
-  bool get _isFormValid {
-    return _nameController.text.isNotEmpty;
-  }
-
   Widget _buildFormModal() {
+    final isLoading = ref.watch(levelProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -246,15 +241,19 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
-                onPressed: _save,
+                isLoading: isLoading,
+                onPressed: (isLoading || _nameController.text.trim().isEmpty)
+                    ? null
+                    : _save,
               ),
             ],
           ),
           child: AppTextField(
             label: 'ຊື່ຊັ້ນ/ລະດັບ',
-            hint: 'ເຊັ່ນ: ມ.4, ເບື້ອງຕົ້ນ, HSK1',
+            hint: 'ເຊັ່ນ: ມ.4, ເລີ່ມຕົ້ນຕົ້ນ, HSK1',
             controller: _nameController,
             required: true,
+            onChanged: (_) => setState(() {}),
           ),
         ),
       ),
@@ -263,6 +262,7 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
 
   Widget _buildDeleteDialog() {
     if (selectedItem == null) return const SizedBox.shrink();
+    final isLoading = ref.watch(levelProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -289,7 +289,8 @@ class _LevelScreenState extends ConsumerState<LevelScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
-                onPressed: _delete,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : _delete,
               ),
             ],
           ),

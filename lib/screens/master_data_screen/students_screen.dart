@@ -9,7 +9,6 @@ import '../../providers/province_provider.dart';
 import '../../providers/district_provider.dart';
 import '../../providers/student_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_dialog.dart';
@@ -34,6 +33,11 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
   final _phoneController = TextEditingController();
   final _parentsContactController = TextEditingController();
   final _schoolController = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  final _lastnameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _parentsContactFocusNode = FocusNode();
+  final _schoolFocusNode = FocusNode();
   String _selectedGender = 'ຊາຍ';
   int? _selectedProvinceId;
   int? _selectedDistrictId;
@@ -186,13 +190,11 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
       success = await ref.read(studentProvider.notifier).createStudent(request);
     }
 
+    if (!mounted) {
+      return;
+    }
+
     if (success) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing
-            ? 'ອັບເດດຂໍ້ມູນນັກຮຽນສຳເລັດ'
-            : 'ບັນທຶກຂໍ້ມູນນັກຮຽນສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -224,7 +226,6 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
       }
 
       if (success && mounted) {
-        SuccessOverlay.show(context, message: 'ລຶບນັກຮຽນສຳເລັດ');
         setState(() {
           selectedItem = null;
         });
@@ -245,6 +246,11 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
     _phoneController.dispose();
     _parentsContactController.dispose();
     _schoolController.dispose();
+    _nameFocusNode.dispose();
+    _lastnameFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _parentsContactFocusNode.dispose();
+    _schoolFocusNode.dispose();
     super.dispose();
   }
 
@@ -322,6 +328,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                 'school',
               ],
               addLabel: 'ເພີ່ມນັກຮຽນ',
+              isLoading: isLoading,
             ),
           ),
         ),
@@ -332,6 +339,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
   }
 
   Widget _buildFormModal() {
+    final isLoading = ref.watch(studentProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -357,7 +365,8 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
-                onPressed: _isFormValid ? _save : null,
+                isLoading: isLoading,
+                onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
           ),
@@ -378,11 +387,15 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                         label: 'ຊື່',
                         hint: 'ປ້ອນຊື່ນັກຮຽນ',
                         controller: _nameController,
+                        focusNode: _nameFocusNode,
+                        textInputAction: TextInputAction.next,
                         required: true,
                         validator: (v) => v?.isNotEmpty == true
                             ? null
                             : 'ກະລຸນາປ້ອນຊື່ນັກຮຽນ',
                         onChanged: (_) => setState(() {}),
+                        onFieldSubmitted: (_) =>
+                            _lastnameFocusNode.requestFocus(),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -391,10 +404,13 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                         label: 'ນາມສະກຸນ',
                         hint: 'ປ້ອນນາມສະກຸນ',
                         controller: _lastnameController,
+                        focusNode: _lastnameFocusNode,
+                        textInputAction: TextInputAction.next,
                         required: true,
                         validator: (v) =>
                             v?.isNotEmpty == true ? null : 'ກະລຸນາປ້ອນນາມສະກຸນ',
                         onChanged: (_) => setState(() {}),
+                        onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
                       ),
                     ),
                   ],
@@ -419,13 +435,17 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                         label: 'ເບີໂທນັກຮຽນ',
                         hint: '020XXXXXXXX',
                         controller: _phoneController,
+                        focusNode: _phoneFocusNode,
                         keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
                         required: true,
                         digitOnly: DigitOnly.integer,
                         maxLength: _phoneController.text.startsWith('020')
                             ? 11
                             : 10,
                         onChanged: (_) => setState(() {}),
+                        onFieldSubmitted: (_) =>
+                            _parentsContactFocusNode.requestFocus(),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -434,7 +454,9 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                         label: 'ເບີໂທຜູ້ປົກຄອງ',
                         hint: '020XXXXXXXX ຫຼື 030XXXXXXX',
                         controller: _parentsContactController,
+                        focusNode: _parentsContactFocusNode,
                         keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
                         required: true,
                         digitOnly: DigitOnly.integer,
                         maxLength:
@@ -442,6 +464,8 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                             ? 11
                             : 10,
                         onChanged: (_) => setState(() {}),
+                        onFieldSubmitted: (_) =>
+                            _schoolFocusNode.requestFocus(),
                       ),
                     ),
                   ],
@@ -451,6 +475,8 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                   label: 'ໂຮງຮຽນ',
                   hint: 'ປ້ອນຊື່ໂຮງຮຽນ(ຕົວຢ່າງ: ມສ ວຽງຈັນ, ມສ ຈອມເພັດ)',
                   controller: _schoolController,
+                  focusNode: _schoolFocusNode,
+                  textInputAction: TextInputAction.next,
                   required: true,
                 ),
                 const SizedBox(height: 16),
@@ -543,6 +569,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
 
   Widget _buildDeleteDialog() {
     if (selectedItem == null) return const SizedBox.shrink();
+    final isLoading = ref.watch(studentProvider).isLoading;
     return Material(
       color: Colors.black54,
       child: Center(
@@ -569,7 +596,8 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
-                onPressed: _delete,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : _delete,
               ),
             ],
           ),

@@ -7,7 +7,6 @@ import '../../providers/teacher_provider.dart';
 import '../../providers/province_provider.dart';
 import '../../providers/district_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_dialog.dart';
@@ -30,6 +29,9 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
   final _nameController = TextEditingController();
   final _lastnameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  final _lastnameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
   String _selectedGender = 'ຊາຍ';
   int? _selectedProvinceId;
   int? _selectedDistrictId;
@@ -150,10 +152,6 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດຂໍ້ມູນອາຈານສຳເລັດ' : 'ເພີ່ມອາຈານສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -185,7 +183,6 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບຂໍ້ມູນອາຈານສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -203,6 +200,9 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
     _nameController.dispose();
     _lastnameController.dispose();
     _phoneController.dispose();
+    _nameFocusNode.dispose();
+    _lastnameFocusNode.dispose();
+    _phoneFocusNode.dispose();
     super.dispose();
   }
 
@@ -278,7 +278,7 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
   bool get _isFormValid {
     return _nameController.text.isNotEmpty &&
         _lastnameController.text.isNotEmpty &&
-        _selectedGender != null &&
+        _selectedGender.isNotEmpty &&
         _phoneController.text.isNotEmpty &&
         _selectedProvinceId != null &&
         _selectedDistrictId != null;
@@ -330,6 +330,10 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
                       label: 'ຊື່',
                       hint: 'ປ້ອນຊື່ອາຈານ',
                       controller: _nameController,
+                      focusNode: _nameFocusNode,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          _lastnameFocusNode.requestFocus(),
                       required: true,
                     ),
                   ),
@@ -339,6 +343,9 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
                       label: 'ນາມສະກຸນ',
                       hint: 'ປ້ອນນາມສະກຸນ',
                       controller: _lastnameController,
+                      focusNode: _lastnameFocusNode,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
                       required: true,
                     ),
                   ),
@@ -367,7 +374,9 @@ class _TeachersScreenState extends ConsumerState<TeachersScreen> {
                       label: 'ເບີໂທຕິດຕໍ່',
                       hint: '020XXXXXXXX',
                       controller: _phoneController,
+                      focusNode: _phoneFocusNode,
                       keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
                       required: true,
                       digitOnly: DigitOnly.integer,
                       maxLength: 11,

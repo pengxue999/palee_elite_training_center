@@ -289,12 +289,8 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
         key: 'amount',
         label: 'ຈຳນວນ',
         flex: 2,
-        render: (context, item) {
-          final amountText = item.donationCategory == 'ເງິນສົດ'
-              ? FormatUtils.formatKip(item.amount.toInt())
-              : item.amount.toInt().toString();
-          return Text(amountText);
-        },
+        render: (context, item) =>
+            Text(FormatUtils.formatNumber(item.amount.toInt())),
       ),
       DataColumnDef<DonationModel>(
         key: 'unit',

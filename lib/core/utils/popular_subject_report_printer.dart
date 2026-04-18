@@ -36,3 +36,39 @@ Future<void> showPopularSubjectReportPrintDialog({
     }
   }
 }
+
+Future<void> showPopularSubjectLevelReportPrintDialog({
+  required BuildContext context,
+  String? academicId,
+  required String subjectName,
+  required String subjectCategory,
+  required String levelName,
+  VoidCallback? onPreviewReady,
+}) async {
+  try {
+    final pdfBytes = await _reportService.createPopularSubjectLevelDetailPdf(
+      academicId: academicId,
+      subjectName: subjectName,
+      subjectCategory: subjectCategory,
+      levelName: levelName,
+    );
+
+    if (!context.mounted) {
+      return;
+    }
+
+    onPreviewReady?.call();
+
+    await showPdfPrintDialog(
+      context: context,
+      pdfBytes: pdfBytes,
+      documentId: DateFormat('yyyyMMdd_HHmmss').format(DateTime.now()),
+      title: 'ພິມລາຍຊື່ $subjectName $levelName',
+      fileNamePrefix: 'popular_subject_level_report',
+    );
+  } catch (e) {
+    if (context.mounted) {
+      AppToast.error(context, 'ບໍ່ສາມາດສ້າງ PDF ໄດ້: $e');
+    }
+  }
+}

@@ -86,7 +86,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   String _searchQuery = '';
   Student? _selectedStudent;
 
-  String _selectedCategory = '';
   final Set<String> _selectedFeeIds = {};
 
   String? _selectedDiscountId;
@@ -102,16 +101,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   List<FeeModel> get _fees => ref.watch(feeProvider).fees;
   bool get _isLoadingFees => ref.watch(feeProvider).isLoading;
   List<DiscountModel> get _discounts => ref.watch(discountProvider).discounts;
-
-  List<String> get _categories {
-    final cats = _fees.map((f) => f.subjectCategory).toSet().toList()..sort();
-    return cats;
-  }
-
-  List<FeeModel> get _filteredFees {
-    if (_selectedCategory.isEmpty) return _fees;
-    return _fees.where((f) => f.subjectCategory == _selectedCategory).toList();
-  }
 
   List<StudentModel> get _apiStudents => ref.watch(studentProvider).students;
   List<Student> get _studentsFromApi {
@@ -252,7 +241,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     setState(() {
       _selectedStudent = s;
       _currentStep = 2;
-      _selectedCategory = '';
       _applyDefaultOtherFee(s);
     });
   }
@@ -294,7 +282,6 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       _selectedFeeIds.clear();
       _searchQuery = '';
       _searchCtrl.clear();
-      _selectedCategory = '';
       _autoRenew = false;
       _currentStep = 1;
       _selectedDiscountId = null;
@@ -468,9 +455,11 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                       autoRenew: _autoRenew,
                       onAutoRenewChanged: (v) => setState(() => _autoRenew = v),
                       canSave:
-                          _selectedStudent != null && _selectedFeeIds.isNotEmpty,
+                          _selectedStudent != null &&
+                          _selectedFeeIds.isNotEmpty,
                       discountEnabled:
-                          _selectedStudent != null && _selectedFeeIds.isNotEmpty,
+                          _selectedStudent != null &&
+                          _selectedFeeIds.isNotEmpty,
                       onSave: _handleSave,
                       onPrint: () {},
                       onCancel: _handleClear,
@@ -495,18 +484,16 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                           ),
                           const SizedBox(height: 16),
                           SelectSubjectSection(
-                            categories: _categories,
-                            selectedCategory: _selectedCategory,
                             allFees: _fees,
-                            filteredFees: _filteredFees,
                             selectedFeeIds: _selectedFeeIds,
                             isLoading: _isLoadingFees,
                             enabled: _selectedStudent != null,
-                            onCategoryChanged: (c) =>
-                                setState(() => _selectedCategory = c),
                             onToggleFee: _toggleFee,
                           ),
-                          if (!wide) ...[const SizedBox(height: 20), rightPanel],
+                          if (!wide) ...[
+                            const SizedBox(height: 20),
+                            rightPanel,
+                          ],
                         ],
                       ),
                     );
@@ -773,6 +760,11 @@ class _AddStudentDialogState extends ConsumerState<_AddStudentDialog> {
   final _phoneCtrl = TextEditingController();
   final _parentPhoneCtrl = TextEditingController();
   final _schoolCtrl = TextEditingController();
+  final _firstNameFocusNode = FocusNode();
+  final _lastNameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  final _parentPhoneFocusNode = FocusNode();
+  final _schoolFocusNode = FocusNode();
 
   String _gender = 'ຊາຍ';
   int? _selectedProvinceId;
@@ -821,6 +813,11 @@ class _AddStudentDialogState extends ConsumerState<_AddStudentDialog> {
     _phoneCtrl.dispose();
     _parentPhoneCtrl.dispose();
     _schoolCtrl.dispose();
+    _firstNameFocusNode.dispose();
+    _lastNameFocusNode.dispose();
+    _phoneFocusNode.dispose();
+    _parentPhoneFocusNode.dispose();
+    _schoolFocusNode.dispose();
     super.dispose();
   }
 
@@ -942,6 +939,11 @@ class _AddStudentDialogState extends ConsumerState<_AddStudentDialog> {
           phoneCtrl: _phoneCtrl,
           parentPhoneCtrl: _parentPhoneCtrl,
           schoolCtrl: _schoolCtrl,
+          firstNameFocusNode: _firstNameFocusNode,
+          lastNameFocusNode: _lastNameFocusNode,
+          phoneFocusNode: _phoneFocusNode,
+          parentPhoneFocusNode: _parentPhoneFocusNode,
+          schoolFocusNode: _schoolFocusNode,
           gender: _gender,
           onGenderChanged: (value) => setState(() => _gender = value ?? 'ຊາຍ'),
           onConfirm: _save,

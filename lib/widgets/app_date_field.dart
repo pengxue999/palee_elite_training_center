@@ -134,9 +134,9 @@ class _AppDateFieldState extends State<AppDateField>
   }
 
   Color get _fillColor {
-    if (!widget.enabled) return AppColors.input.withValues(alpha: 0.4);
+    if (!widget.enabled) return Colors.white;
     if (_isFocused) return AppColors.primary.withValues(alpha: 0.04);
-    return AppColors.input;
+    return Colors.white;
   }
 
   @override
@@ -182,7 +182,7 @@ class _AppDateFieldState extends State<AppDateField>
             border: Border.all(
               color: _isFocused
                   ? AppColors.primary.withValues(alpha: 0.7)
-                  : AppColors.border.withValues(alpha: 0.5),
+                  : AppColors.border,
               width: _isFocused ? 1.5 : 1,
             ),
             boxShadow: _isFocused
@@ -210,8 +210,8 @@ class _AppDateFieldState extends State<AppDateField>
                   ],
                   onChanged: _commitDisplay,
                   style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
                     color: widget.enabled
                         ? AppColors.foreground
                         : AppColors.mutedForeground,
@@ -220,9 +220,9 @@ class _AppDateFieldState extends State<AppDateField>
                   decoration: InputDecoration(
                     hintText: 'DD-MM-YYYY',
                     hintStyle: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 16,
                       fontWeight: FontWeight.w400,
-                      color: AppColors.mutedForeground.withValues(alpha: 0.55),
+                      color: AppColors.accentForeground,
                     ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,

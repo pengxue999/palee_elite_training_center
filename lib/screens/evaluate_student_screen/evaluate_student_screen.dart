@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
+import 'package:palee_elite_training_center/core/utils/format_utils.dart';
 import 'package:palee_elite_training_center/models/evaluation_model.dart';
 import 'package:palee_elite_training_center/providers/evaluation_provider.dart';
 import 'package:palee_elite_training_center/widgets/api_error_handler.dart';
@@ -71,31 +72,21 @@ class _EvaluateStudentScreenState extends ConsumerState<EvaluateStudentScreen> {
     return double.tryParse(rawScore);
   }
 
-  String? _readPrize(int regisDetailId) {
+  double? _readPrize(int regisDetailId) {
     final rawPrize =
         _prizeControllers[regisDetailId]?.text.trim().replaceAll(',', '') ?? '';
     if (rawPrize.isEmpty) {
       return null;
     }
-    return rawPrize;
+    return double.tryParse(rawPrize);
   }
 
-  String _formatMoneyInput(String? value) {
-    if (value == null || value.isEmpty) {
+  String _formatMoneyInput(double? value) {
+    if (value == null) {
       return '';
     }
 
-    final amount = double.tryParse(value.replaceAll(',', ''));
-    if (amount == null) {
-      return value;
-    }
-
-    return amount
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (match) => '${match[1]},',
-        );
+    return FormatUtils.formatNumber(value.toInt());
   }
 
   String _formatAverage(double value) {
@@ -154,10 +145,10 @@ class _EvaluateStudentScreenState extends ConsumerState<EvaluateStudentScreen> {
   }
 
   String _currentRankingLabel(EvaluationScoreEntryStudent student) {
-    if (student.ranking == null || student.ranking!.isEmpty) {
+    if (student.ranking == null) {
       return '-';
     }
-    return student.ranking!;
+    return student.ranking.toString();
   }
 
   List<DataColumnDef<EvaluationScoreEntryStudent>> _buildColumns() {

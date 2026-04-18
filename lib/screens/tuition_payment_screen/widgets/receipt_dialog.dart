@@ -10,6 +10,7 @@ class ReceiptDialog extends StatelessWidget {
   final VoidCallback onClose;
 
   const ReceiptDialog({
+    super.key,
     required this.payment,
     required this.registration,
     required this.formatKip,

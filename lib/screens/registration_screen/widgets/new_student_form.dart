@@ -14,6 +14,11 @@ class NewStudentForm extends StatelessWidget {
   final TextEditingController phoneCtrl;
   final TextEditingController parentPhoneCtrl;
   final TextEditingController schoolCtrl;
+  final FocusNode? firstNameFocusNode;
+  final FocusNode? lastNameFocusNode;
+  final FocusNode? phoneFocusNode;
+  final FocusNode? parentPhoneFocusNode;
+  final FocusNode? schoolFocusNode;
   final String gender;
   final ValueChanged<String?> onGenderChanged;
   final VoidCallback onConfirm;
@@ -41,6 +46,11 @@ class NewStudentForm extends StatelessWidget {
     required this.phoneCtrl,
     required this.parentPhoneCtrl,
     required this.schoolCtrl,
+    this.firstNameFocusNode,
+    this.lastNameFocusNode,
+    this.phoneFocusNode,
+    this.parentPhoneFocusNode,
+    this.schoolFocusNode,
     required this.gender,
     required this.onGenderChanged,
     required this.onConfirm,
@@ -83,9 +93,12 @@ class NewStudentForm extends StatelessWidget {
                 label: 'ຊື່',
                 hint: 'ປ້ອນຊື່ນັກຮຽນ',
                 controller: firstNameCtrl,
+                focusNode: firstNameFocusNode,
+                textInputAction: TextInputAction.next,
                 required: true,
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນຊື່' : null,
+                onFieldSubmitted: (_) => lastNameFocusNode?.requestFocus(),
               ),
             ),
             const SizedBox(width: 12),
@@ -94,10 +107,13 @@ class NewStudentForm extends StatelessWidget {
                 label: 'ນາມສະກຸນ',
                 hint: 'ປ້ອນນາມສະກຸນ',
                 controller: lastNameCtrl,
+                focusNode: lastNameFocusNode,
+                textInputAction: TextInputAction.next,
                 required: true,
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'ກະລຸນາປ້ອນນາມສະກຸນ'
                     : null,
+                onFieldSubmitted: (_) => phoneFocusNode?.requestFocus(),
               ),
             ),
           ],
@@ -126,10 +142,13 @@ class NewStudentForm extends StatelessWidget {
                 label: 'ເບີໂທນັກຮຽນ',
                 hint: '020XXXXXXXX',
                 controller: phoneCtrl,
+                focusNode: phoneFocusNode,
                 keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
                 required: true,
                 digitOnly: DigitOnly.integer,
                 maxLength: phoneCtrl.text.startsWith('020') ? 11 : 10,
+                onFieldSubmitted: (_) => parentPhoneFocusNode?.requestFocus(),
               ),
             ),
             const SizedBox(width: 12),
@@ -138,9 +157,12 @@ class NewStudentForm extends StatelessWidget {
                 label: 'ເບີໂທຜູ້ປົກຄອງ',
                 hint: '020XXXXXXXX ຫຼື 030XXXXXXX',
                 controller: parentPhoneCtrl,
+                focusNode: parentPhoneFocusNode,
                 keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
                 digitOnly: DigitOnly.integer,
                 maxLength: parentPhoneCtrl.text.startsWith('020') ? 11 : 10,
+                onFieldSubmitted: (_) => schoolFocusNode?.requestFocus(),
               ),
             ),
           ],
@@ -152,6 +174,8 @@ class NewStudentForm extends StatelessWidget {
           label: 'ໂຮງຮຽນ',
           hint: 'ປ້ອນຊື່ໂຮງຮຽນ (ຕົວຢ່າງ: ມສ ວຽງຈັນ, ມສ ຈອມເພັດ)',
           controller: schoolCtrl,
+          focusNode: schoolFocusNode,
+          textInputAction: TextInputAction.next,
           required: true,
           validator: (v) =>
               (v == null || v.trim().isEmpty) ? 'ກະລຸນາປ້ອນໂຮງຮຽນ' : null,

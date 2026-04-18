@@ -5,7 +5,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/expense_category_model.dart';
 import '../../providers/expense_category_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -79,12 +78,6 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
           .createExpenseCategory(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing
-            ? 'ອັບເດດປະເພດລາຍຈ່າຍສຳເລັດ'
-            : 'ເພີ່ມປະເພດລາຍຈ່າຍສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -116,7 +109,6 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບປະເພດລາຍຈ່າຍສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -219,6 +211,7 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save,
+                isLoading: isLoading,
                 onPressed: (isLoading) ? null : _save,
               ),
             ],
@@ -263,6 +256,7 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

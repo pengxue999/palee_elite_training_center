@@ -9,7 +9,6 @@ const _userNameKey = 'auth_user_name';
 const _roleKey = 'auth_role';
 const _teacherIdKey = 'auth_teacher_id';
 
-
 class AuthState {
   final bool isAuthenticated;
   final bool isLoading;
@@ -57,7 +56,6 @@ class AuthState {
     );
   }
 }
-
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _service;
@@ -117,10 +115,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     HttpHelper().setDefaultHeaders({'Authorization': ''});
 
-    state = const AuthState();
+    state = const AuthState(isInitializing: false);
   }
 }
-
 
 final authServiceProvider = Provider<AuthService>((_) => AuthService());
 

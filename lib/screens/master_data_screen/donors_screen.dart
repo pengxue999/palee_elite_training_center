@@ -5,7 +5,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/donor_model.dart';
 import '../../providers/donor_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -28,6 +27,10 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
   final _lastnameController = TextEditingController();
   final _contactController = TextEditingController();
   final _sectionController = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  final _lastnameFocusNode = FocusNode();
+  final _contactFocusNode = FocusNode();
+  final _sectionFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -95,12 +98,6 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
       success = await ref.read(donorProvider.notifier).createDonor(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing
-            ? 'ອັບເດດຂໍ້ມູນຜູ້ບໍລິຈາກສຳເລັດ'
-            : 'ເພີ່ມຜູ້ບໍລິຈາກສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -132,7 +129,6 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບຂໍ້ມູນຜູ້ບໍລິຈາກສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -151,6 +147,10 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
     _lastnameController.dispose();
     _contactController.dispose();
     _sectionController.dispose();
+    _nameFocusNode.dispose();
+    _lastnameFocusNode.dispose();
+    _contactFocusNode.dispose();
+    _sectionFocusNode.dispose();
     super.dispose();
   }
 
@@ -265,6 +265,7 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
+                isLoading: isLoading,
                 onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
@@ -279,8 +280,12 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
                       label: 'ຊື່',
                       hint: 'ປ້ອນຊື່ຜູ້ບໍລິຈາກ ',
                       controller: _nameController,
+                      focusNode: _nameFocusNode,
+                      textInputAction: TextInputAction.next,
                       required: true,
                       onChanged: (_) => setState(() {}),
+                      onFieldSubmitted: (_) =>
+                          _lastnameFocusNode.requestFocus(),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -289,8 +294,11 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
                       label: 'ນາມສະກຸນ',
                       hint: 'ປ້ອນນາມສະກຸນ',
                       controller: _lastnameController,
+                      focusNode: _lastnameFocusNode,
+                      textInputAction: TextInputAction.next,
                       required: true,
                       onChanged: (_) => setState(() {}),
+                      onFieldSubmitted: (_) => _contactFocusNode.requestFocus(),
                     ),
                   ),
                 ],
@@ -300,11 +308,14 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
                 label: 'ເບີໂທຕິດຕໍ່',
                 hint: '020XXXXXXXX',
                 controller: _contactController,
+                focusNode: _contactFocusNode,
                 required: true,
                 keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
                 digitOnly: DigitOnly.integer,
                 maxLength: 11,
                 onChanged: (_) => setState(() {}),
+                onFieldSubmitted: (_) => _sectionFocusNode.requestFocus(),
               ),
 
               const SizedBox(height: 16),
@@ -312,6 +323,8 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
                 label: 'ໜ່ວຍງານ / ອົງກອນ (ຖ້າມີ)',
                 hint: 'ຕົວຢ່າງ: ສູນສົ່ງເສີທການຮຽນຮູ້, ບໍລິສັດ UNITEL',
                 controller: _sectionController,
+                focusNode: _sectionFocusNode,
+                textInputAction: TextInputAction.done,
                 onChanged: (_) => setState(() {}),
               ),
             ],
@@ -350,6 +363,7 @@ class _DonorsScreenState extends ConsumerState<DonorsScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

@@ -8,21 +8,13 @@ class SuccessOverlay {
     Duration duration = const Duration(seconds: 1),
   }) {
     final completer = Completer<void>();
+    final navigator = Navigator.of(context, rootNavigator: true);
 
     showDialog(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       builder: (dialogContext) {
-        Future.delayed(duration, () {
-          if (Navigator.of(dialogContext).canPop()) {
-            Navigator.of(dialogContext).pop();
-          }
-          if (!completer.isCompleted) {
-            completer.complete();
-          }
-        });
-
         return PopScope(
           canPop: false,
           child: Center(
@@ -36,7 +28,7 @@ class SuccessOverlay {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -71,11 +63,19 @@ class SuccessOverlay {
       },
     );
 
+    Future.delayed(duration, () {
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    });
+
     return completer.future;
   }
 }
 
-/// Modern animated checkmark with pulsing effect
 class _ModernLoadingAnimation extends StatefulWidget {
   const _ModernLoadingAnimation();
 

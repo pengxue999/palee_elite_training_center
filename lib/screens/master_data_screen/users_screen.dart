@@ -4,7 +4,6 @@ import '../../core/constants/app_colors.dart';
 import '../../models/user_model.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -27,6 +26,8 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
 
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   String _selectedRole = 'admin';
 
   static const List<Map<String, String>> _roles = [
@@ -101,10 +102,6 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
       success = await ref.read(userProvider.notifier).createUser(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດຜູ້ໃຊ້ສຳເລັດ' : 'ເພີ່ມຜູ້ໃຊ້ສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -136,7 +133,6 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     }
 
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບຜູ້ໃຊ້ສຳເລັດ');
       setState(() {
         selectedItem = null;
       });
@@ -172,6 +168,8 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _usernameFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -276,7 +274,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
     final isPasswordValid = isEditing || _passwordController.text.isNotEmpty;
     return _usernameController.text.isNotEmpty &&
         isPasswordValid &&
-        _selectedRole != null;
+        _selectedRole.isNotEmpty;
   }
 
   Widget _buildFormModal() {
@@ -306,6 +304,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
+                isLoading: isLoading,
                 onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
@@ -315,10 +314,13 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
             children: [
               AppTextField(
                 label: 'ກຳນົດຊື່ຜູ້ໃຊ້',
-                hint: 'ເຊັ່ນ: admin, teacher01',
+                hint: 'ເຊັ່ນ: admin, TC001',
                 controller: _usernameController,
+                focusNode: _usernameFocusNode,
+                textInputAction: TextInputAction.next,
                 required: true,
                 onChanged: (_) => setState(() {}),
+                onFieldSubmitted: (_) => _passwordFocusNode.requestFocus(),
               ),
               const SizedBox(height: 16),
               AppTextField(
@@ -327,7 +329,9 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     ? 'ປ້ອນລະຫັດໃໝ່ (ຖ້າຕ້ອງການປ່ຽນລະຫັດ)'
                     : 'ປ້ອນລະຫັດຜ່ານ',
                 controller: _passwordController,
+                focusNode: _passwordFocusNode,
                 required: !isEditing,
+                textInputAction: TextInputAction.next,
                 obscureText: !_showPassword,
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -394,6 +398,7 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

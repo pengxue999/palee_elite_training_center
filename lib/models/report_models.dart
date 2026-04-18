@@ -300,11 +300,13 @@ class TeacherAttendanceReportItem {
       status: json['status'] as String?,
       hourly: double.tryParse(json['hourly']?.toString() ?? '0') ?? 0,
       hourlyRate: double.tryParse(json['hourly_rate']?.toString() ?? '0') ?? 0,
-      totalAmount: double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0,
+      totalAmount:
+          double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0,
       remark: json['remark'] as String?,
       isSubstitute: json['is_substitute'] == true || json['is_substitute'] == 1,
       substituteForTeacherName: json['substitute_for_teacher_name'] as String?,
-      substituteForTeacherLastname: json['substitute_for_teacher_lastname'] as String?,
+      substituteForTeacherLastname:
+          json['substitute_for_teacher_lastname'] as String?,
       substituteForSubjectName: json['substitute_for_subject_name'] as String?,
     );
   }
@@ -402,7 +404,8 @@ class TeacherAttendanceSummary {
       presentCount: json['present_count'] as int,
       absentCount: json['absent_count'] as int,
       totalHours: double.tryParse(json['total_hours']?.toString() ?? '0') ?? 0,
-      totalAmount: double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0,
+      totalAmount:
+          double.tryParse(json['total_amount']?.toString() ?? '0') ?? 0,
       byTeacher: Map<String, int>.from(json['by_teacher'] as Map),
       bySubject: Map<String, int>.from(json['by_subject'] as Map),
       byStatus: Map<String, int>.from(json['by_status'] as Map),
@@ -425,7 +428,9 @@ class TeacherAttendanceReportResponse {
     return TeacherAttendanceReportResponse(
       code: json['code'] as String,
       messages: json['messages'] as String,
-      data: TeacherAttendanceReportData.fromJson(json['data'] as Map<String, dynamic>),
+      data: TeacherAttendanceReportData.fromJson(
+        json['data'] as Map<String, dynamic>,
+      ),
     );
   }
 }
@@ -445,18 +450,24 @@ class TeacherAttendanceReportData {
 
   factory TeacherAttendanceReportData.fromJson(Map<String, dynamic> json) {
     return TeacherAttendanceReportData(
-      filters: TeacherAttendanceFilters.fromJson(json['filters'] as Map<String, dynamic>),
+      filters: TeacherAttendanceFilters.fromJson(
+        json['filters'] as Map<String, dynamic>,
+      ),
       totalCount: json['total_count'] as int,
       records: (json['records'] as List)
-          .map((e) => TeacherAttendanceReportItem.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) =>
+                TeacherAttendanceReportItem.fromJson(e as Map<String, dynamic>),
+          )
           .toList(),
       summary: json['summary'] != null
-          ? TeacherAttendanceSummary.fromJson(json['summary'] as Map<String, dynamic>)
+          ? TeacherAttendanceSummary.fromJson(
+              json['summary'] as Map<String, dynamic>,
+            )
           : null,
     );
   }
 }
-
 
 class FinanceSummary {
   final double totalIncome;
@@ -471,8 +482,10 @@ class FinanceSummary {
 
   factory FinanceSummary.fromJson(Map<String, dynamic> json) {
     return FinanceSummary(
-      totalIncome: double.tryParse(json['total_income']?.toString() ?? '0') ?? 0,
-      totalExpense: double.tryParse(json['total_expense']?.toString() ?? '0') ?? 0,
+      totalIncome:
+          double.tryParse(json['total_income']?.toString() ?? '0') ?? 0,
+      totalExpense:
+          double.tryParse(json['total_expense']?.toString() ?? '0') ?? 0,
       balance: double.tryParse(json['balance']?.toString() ?? '0') ?? 0,
     );
   }
@@ -526,11 +539,7 @@ class FinanceFilters {
   final String? academicYearName;
   final int? year;
 
-  const FinanceFilters({
-    this.academicId,
-    this.academicYearName,
-    this.year,
-  });
+  const FinanceFilters({this.academicId, this.academicYearName, this.year});
 
   factory FinanceFilters.fromJson(Map<String, dynamic> json) {
     return FinanceFilters(
@@ -695,7 +704,6 @@ class FinanceReportResponse {
   }
 }
 
-
 class PopularSubjectItem {
   final String subjectName;
   final String subjectCategory;
@@ -811,10 +819,7 @@ class PopularSubjectsFilters {
   final String? academicId;
   final String? academicYearName;
 
-  const PopularSubjectsFilters({
-    this.academicId,
-    this.academicYearName,
-  });
+  const PopularSubjectsFilters({this.academicId, this.academicYearName});
 
   factory PopularSubjectsFilters.fromJson(Map<String, dynamic> json) {
     return PopularSubjectsFilters(
@@ -841,8 +846,12 @@ class PopularSubjectsReportData {
 
   factory PopularSubjectsReportData.fromJson(Map<String, dynamic> json) {
     return PopularSubjectsReportData(
-      filters: PopularSubjectsFilters.fromJson(json['filters'] as Map<String, dynamic>),
-      summary: PopularSubjectsSummary.fromJson(json['summary'] as Map<String, dynamic>),
+      filters: PopularSubjectsFilters.fromJson(
+        json['filters'] as Map<String, dynamic>,
+      ),
+      summary: PopularSubjectsSummary.fromJson(
+        json['summary'] as Map<String, dynamic>,
+      ),
       subjects: (json['subjects'] as List)
           .map((e) => PopularSubjectItem.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -869,7 +878,9 @@ class PopularSubjectsReportResponse {
     return PopularSubjectsReportResponse(
       code: json['code'] as String,
       messages: json['messages'] as String,
-      data: PopularSubjectsReportData.fromJson(json['data'] as Map<String, dynamic>),
+      data: PopularSubjectsReportData.fromJson(
+        json['data'] as Map<String, dynamic>,
+      ),
     );
   }
 }

@@ -18,14 +18,11 @@ void main() async {
 
   if (!kIsWeb) {
     await WindowManager.instance.ensureInitialized();
-     WindowOptions(
-      minimumSize: Size(1024, 700),
-      center: true,
-    );
-    // await WindowManager.instance.waitUntilReadyToShow(options, () async {
-    //   await WindowManager.instance.show();
-    //   await WindowManager.instance.focus();
-    // });
+    final options = WindowOptions(minimumSize: Size(1024, 700), center: true);
+    await WindowManager.instance.waitUntilReadyToShow(options, () async {
+      await WindowManager.instance.show();
+      await WindowManager.instance.focus();
+    });
 
     WindowManager.instance.setPreventClose(true);
 

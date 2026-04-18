@@ -33,6 +33,8 @@ class _ReportPopularSubjectScreenState
   bool _isLoading = false;
   bool _isExporting = false;
   bool _isPreparingPdfPrint = false;
+  String? _activeLevelExportKey;
+  String? _activeLevelPrintKey;
 
   @override
   void initState() {
@@ -346,6 +348,76 @@ class _ReportPopularSubjectScreenState
         ],
       ),
     );
+  }
+
+  String _levelActionKey(LevelStatsItem level) {
+    return '${level.subjectName}|${level.subjectCategory}|${level.levelName}';
+  }
+
+  Future<void> _handleLevelExport(LevelStatsItem level) async {
+    final actionKey = _levelActionKey(level);
+    if (_activeLevelExportKey != null) {
+      return;
+    }
+
+    setState(() => _activeLevelExportKey = actionKey);
+    try {
+      await ReportExportActionHelper.exportReport(
+        context: context,
+        reportTitle: '${level.subjectName} ${level.levelName}',
+        requestExport: (format) async {
+          final exportResponse = await _reportService
+              .exportPopularSubjectLevelDetailReport(
+                academicId: _selectedAcademicId,
+                subjectName: level.subjectName,
+                subjectCategory: level.subjectCategory,
+                levelName: level.levelName,
+                format: format,
+              );
+          return exportResponse.data;
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'Export ບໍ່ສຳເລັດ: $e');
+      }
+    } finally {
+      if (mounted && _activeLevelExportKey == actionKey) {
+        setState(() => _activeLevelExportKey = null);
+      }
+    }
+  }
+
+  Future<void> _handleLevelPdfPrint(LevelStatsItem level) async {
+    final actionKey = _levelActionKey(level);
+    if (_activeLevelPrintKey != null) {
+      return;
+    }
+
+    setState(() => _activeLevelPrintKey = actionKey);
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) {
+        return;
+      }
+
+      await showPopularSubjectLevelReportPrintDialog(
+        context: context,
+        academicId: _selectedAcademicId,
+        subjectName: level.subjectName,
+        subjectCategory: level.subjectCategory,
+        levelName: level.levelName,
+        onPreviewReady: () {
+          if (mounted && _activeLevelPrintKey == actionKey) {
+            setState(() => _activeLevelPrintKey = null);
+          }
+        },
+      );
+    } finally {
+      if (mounted && _activeLevelPrintKey == actionKey) {
+        setState(() => _activeLevelPrintKey = null);
+      }
+    }
   }
 
   Widget _buildSubjectPieChart(List<PopularSubjectItem> subjects) {
@@ -753,11 +825,6 @@ class _ReportPopularSubjectScreenState
               color: AppColors.foreground,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'ທັງໝົດ ${levelData.length} ລະດັບ',
-            style: TextStyle(fontSize: 13, color: AppColors.mutedForeground),
-          ),
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -768,6 +835,7 @@ class _ReportPopularSubjectScreenState
                 2: FlexColumnWidth(1.8),
                 3: FlexColumnWidth(1.5),
                 4: FlexColumnWidth(1.0),
+                5: FlexColumnWidth(1.2),
               },
               border: TableBorder.symmetric(
                 inside: BorderSide(color: AppColors.border),
@@ -781,7 +849,8 @@ class _ReportPopularSubjectScreenState
                     _buildTableHeaderCell('ວິຊາ'),
                     _buildTableHeaderCell('ໝວດ'),
                     _buildTableHeaderCell('ລະດັບ/ຊັ້ນ'),
-                    _buildTableHeaderCell('ນັກຮຽນ', isRightAligned: true),
+                    _buildTableHeaderCell('ນັກຮຽນ'),
+                    _buildTableHeaderCell('ຈັດການ'),
                   ],
                 ),
                 ...levelData.asMap().entries.map((entry) {
@@ -806,14 +875,65 @@ class _ReportPopularSubjectScreenState
                       _buildTableBodyCell(row.levelName),
                       _buildTableBodyCell(
                         '${row.studentCount} ຄົນ',
-                        isRightAligned: true,
                         fontWeight: FontWeight.w600,
                         textColor: AppColors.success,
                       ),
+                      _buildLevelActionCell(row),
                     ],
                   );
                 }),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLevelActionCell(LevelStatsItem level) {
+    final actionKey = _levelActionKey(level);
+    final isExporting = _activeLevelExportKey == actionKey;
+    final isPrinting = _activeLevelPrintKey == actionKey;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message:
+                'ສົ່ງອອກ Excel ສະເພາະ ${level.subjectName} ${level.levelName}',
+            child: IconButton(
+              onPressed: isExporting || isPrinting
+                  ? null
+                  : () => _handleLevelExport(level),
+              icon: isExporting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_rounded, size: 20),
+              color: AppColors.success,
+              splashRadius: 20,
+            ),
+          ),
+          Tooltip(
+            message: 'ພິມ PDF ສະເພາະ ${level.subjectName} ${level.levelName}',
+            child: IconButton(
+              onPressed: isExporting || isPrinting
+                  ? null
+                  : () => _handleLevelPdfPrint(level),
+              icon: isPrinting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.print_rounded, size: 20),
+              color: AppColors.primary,
+              splashRadius: 20,
             ),
           ),
         ],

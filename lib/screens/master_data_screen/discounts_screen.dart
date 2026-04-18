@@ -5,7 +5,6 @@ import '../../models/discount_model.dart';
 import '../../providers/discount_provider.dart';
 import '../../providers/academic_year_provider.dart';
 import '../../widgets/app_alerts.dart';
-import '../../widgets/success_overlay.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/app_text_field.dart';
@@ -104,10 +103,6 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
           .createDiscount(request);
     }
     if (success && mounted) {
-      SuccessOverlay.show(
-        context,
-        message: isEditing ? 'ອັບເດດສ່ວນຫຼຸດສຳເລັດ' : 'ເພີ່ມສ່ວນຫຼຸດສຳເລັດ',
-      );
       setState(() {
         showAddEditModal = false;
         _resetForm();
@@ -132,7 +127,6 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
         .read(discountProvider.notifier)
         .deleteDiscount(selectedItem!.discountId);
     if (success && mounted) {
-      SuccessOverlay.show(context, message: 'ລຶບສ່ວນຫຼຸດສຳເລັດ');
       setState(() {
         showDeleteDialog = false;
         selectedItem = null;
@@ -258,6 +252,7 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
               AppButton(
                 label: isEditing ? 'ຢືນຢັນ' : 'ບັນທຶກ',
                 icon: Icons.save_rounded,
+                isLoading: isLoading,
                 onPressed: (isLoading || !_isFormValid) ? null : _save,
               ),
             ],
@@ -298,6 +293,7 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
                 controller: _amountController,
                 required: true,
                 keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
                 digitOnly: DigitOnly.integer,
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -338,6 +334,7 @@ class _DiscountsScreenState extends ConsumerState<DiscountsScreen> {
                 label: 'ລຶບ',
                 icon: Icons.delete_rounded,
                 variant: AppButtonVariant.danger,
+                isLoading: isLoading,
                 onPressed: isLoading ? null : _delete,
               ),
             ],

@@ -7,11 +7,9 @@ import '../../core/utils/format_utils.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../../core/utils/tuition_payment_history_printer.dart';
 import '../../core/utils/tuition_payment_receipt_printer.dart';
-import '../../models/registration_model.dart';
 import '../../models/tuition_payment_model.dart';
 import '../../providers/registration_provider.dart';
 import '../../providers/tuition_payment_provider.dart';
-import '../../widgets/app_button.dart';
 import '../../screens/registration_screen/widgets/status_badge.dart';
 import '../../widgets/app_data_table.dart';
 import '../../widgets/print_preparation_overlay.dart';
@@ -203,18 +201,16 @@ class _TuitionPaymentScreenState extends ConsumerState<TuitionPaymentScreen> {
             return r.registrationId.toLowerCase().contains(q) ||
                 r.studentFullName.toLowerCase().contains(q);
           }).toList();
-    RegistrationModel? selectedRegistration;
     if (_selectedRegId != null) {
       for (final registration in regs) {
         if (registration.registrationId == _selectedRegId) {
-          selectedRegistration = registration;
           break;
         }
       }
     }
 
     return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16),
+      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16, right: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -341,6 +337,7 @@ class _AllPaymentHistorySection extends ConsumerWidget {
                 ),
             ],
           ),
+          SizedBox(height: 12),
           Expanded(
             child: AppDataTable<TuitionPaymentModel>(
               data: allPayments,
