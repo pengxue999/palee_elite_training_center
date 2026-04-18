@@ -168,7 +168,7 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.refresh_rounded),
-          label: Text(_isChecking ? 'ກຳລັງກວດ...' : 'ກວດສອບອັບເດດ'),
+          label: Text(_isChecking ? 'ກຳລັງກວດສອບ...' : 'ກວດສອບ'),
         ),
         FilledButton.icon(
           onPressed: _isInstalling || _availableUpdate == null
