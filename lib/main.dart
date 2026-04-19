@@ -6,12 +6,17 @@ import 'package:palee_elite_training_center/core/constants/app_theme.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/router/app_router.dart';
 
+const Size _minimumWindowSize = Size(1200, 700);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (!kIsWeb) {
     await WindowManager.instance.ensureInitialized();
-    final options = WindowOptions(minimumSize: Size(1024, 700), center: true);
+    final options = WindowOptions(
+      minimumSize: _minimumWindowSize,
+      center: true,
+    );
     await WindowManager.instance.waitUntilReadyToShow(options, () async {
       await WindowManager.instance.show();
       await WindowManager.instance.focus();

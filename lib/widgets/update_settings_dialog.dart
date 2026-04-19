@@ -261,20 +261,6 @@ class _UpdateSettingsDialogState extends State<UpdateSettingsDialog> {
                 ? 'ບໍ່ມີ release notes ສຳລັບ version ນີ້'
                 : info.releaseNotes,
           ),
-          const SizedBox(height: 12),
-          Text(
-            info.hasDownloadUrl
-                ? info.downloadUrl
-                : 'Release ນີ້ຍັງບໍ່ມີ installer URL',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'ເມື່ອກົດອັບເດດ ແອັບຈະປິດ ແລະ installer ຈະເປີດຂຶ້ນ. ຖ້າ Windows ຖາມສິດ admin ໃຫ້ກົດອະນຸຍາດ.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
         ],
       ),
     );
