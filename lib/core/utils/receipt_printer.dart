@@ -78,6 +78,7 @@ Future<void> showPdfPrintDialog({
 }) {
   return showDialog(
     context: context,
+    useRootNavigator: false,
     barrierColor: Colors.black.withValues(alpha: 0.6),
     builder: (_) => _PrintDialog(
       pdfBytes: pdfBytes,
@@ -143,8 +144,9 @@ class _PrintDialogState extends State<_PrintDialog>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
 
-  bool get _useSystemPrintDialog =>
-      kIsWeb || defaultTargetPlatform == TargetPlatform.windows;
+  bool get _isWebMode => kIsWeb;
+
+  bool get _showPrinterList => !_isWebMode;
 
   bool _isVirtualPdfPrinter(Printer printer) {
     final normalized = printer.name.toLowerCase();
@@ -176,7 +178,7 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Future<void> _loadPrinters() async {
-    if (_useSystemPrintDialog) {
+    if (!_showPrinterList) {
       if (mounted) {
         setState(() => _loadingPrinters = false);
       }
@@ -211,39 +213,27 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Future<void> _doPrint() async {
-    if (!_useSystemPrintDialog && _selectedPrinter == null) {
+    if (_isWebMode) {
+      await _doSavePdf();
+      return;
+    }
+
+    if (_selectedPrinter == null) {
       await _doSavePdf();
       return;
     }
 
     setState(() => _printing = true);
     try {
-      if (_useSystemPrintDialog) {
-        await Printing.layoutPdf(
-          name: '${widget.fileNamePrefix}_${widget.documentId}',
-          onLayout: (_) async => widget.pdfBytes,
-        );
-
-        if (!mounted) {
-          return;
-        }
-
-        Navigator.of(context).pop();
-        _showSuccessSnackBar('ເປີດໜ້າຕ່າງພິມແລ້ວ');
-        return;
-      }
-
       await Printing.directPrintPdf(
         printer: _selectedPrinter!,
         onLayout: (_) async => widget.pdfBytes,
         name: '${widget.fileNamePrefix}_${widget.documentId}',
       );
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
-      Navigator.of(context).pop();
+      Navigator.of(context, rootNavigator: false).pop();
       _showSuccessSnackBar('ພິມສຳເລັດ!');
     } catch (e) {
       if (mounted) {
@@ -289,7 +279,7 @@ class _PrintDialogState extends State<_PrintDialog>
       }
 
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context, rootNavigator: false).pop();
         _showSuccessSnackBar('PDF ບັນທຶກສຳເລັດ: $fileName');
       }
     } catch (e) {
@@ -391,14 +381,10 @@ class _PrintDialogState extends State<_PrintDialog>
               Row(
                 children: [
                   _HeaderPill(
-                    icon: _useSystemPrintDialog
-                        ? (kIsWeb
-                              ? Icons.language_rounded
-                              : Icons.desktop_windows_rounded)
+                    icon: _isWebMode
+                        ? Icons.picture_as_pdf_rounded
                         : Icons.print_outlined,
-                    label: _useSystemPrintDialog
-                        ? (kIsWeb ? 'Browser print' : 'Windows print')
-                        : 'Connected printer',
+                    label: _isWebMode ? 'PDF export' : 'Connected printer',
                   ),
                   const SizedBox(width: 8),
                   _HeaderPill(
@@ -522,8 +508,7 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Widget _buildPreviewSidePanel() {
-    if (_useSystemPrintDialog) {
-      final isWeb = kIsWeb;
+    if (_isWebMode) {
       return Container(
         width: 290,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
@@ -537,16 +522,11 @@ class _PrintDialogState extends State<_PrintDialog>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoCard(
-              icon: isWeb
-                  ? Icons.language_rounded
-                  : Icons.desktop_windows_rounded,
-              title: isWeb ? 'Web Printing' : 'Windows Printing',
-              description: isWeb
-                  ? 'ໃນ Web ລະບົບຈະເປີດໜ້າຕ່າງພິມຂອງ browser ໂດຍກົງ ເພື່ອເລືອກ printer ຫຼື ບັນທຶກ PDF.'
-                  : 'ໃນ Windows ລະບົບຈະເປີດ system print dialog ເພື່ອຫຼີກບັນຫາ crash ຈາກ direct print ແລະ ໃຫ້ເລືອກ printer ໄດ້ປອດໄພກວ່າ.',
-              caption: isWeb
-                  ? 'Browser ຈະຈັດການ save/download ແລະ printer options ໃຫ້.'
-                  : 'ເລືອກ printer ແລະ ຄ່າການພິມໃນໜ້າຕ່າງຂອງ Windows.',
+              icon: Icons.picture_as_pdf_rounded,
+              title: 'PDF Export',
+              description:
+                  'ໃນ Web ຈະສະແດງສະເພາະການບັນທຶກ PDF ເທົ່ານັ້ນ ເພື່ອໃຫ້ download ເອກະສານໄດ້ທັນທີ.',
+              caption: 'ບໍ່ສະແດງປຸ່ມພິມ ແລະ ບໍ່ໂຫຼດລາຍຊື່ printer ໃນ browser.',
             ),
           ],
         ),
@@ -582,8 +562,9 @@ class _PrintDialogState extends State<_PrintDialog>
                   icon: Icons.print_disabled_rounded,
                   title: 'ບໍ່ພົບເຄື່ອງປິ້ນເຕີ',
                   description:
-                      'ກະລຸນາກວດສອບການເຊື່ອມຕໍ່ printer ຫຼື ໃຊ້ປຸ່ມບັນທຶກ PDF ແທນກໍໄດ້.',
-                  caption: 'ຖ້າມີ printer ຫຼາຍຕົວ ຈະສາມາດເລືອກໄດ້ຈາກລາຍການນີ້.',
+                      'ກະລຸນາກວດສອບການເຊື່ອມຕໍ່ printer ແລ້ວລອງໃໝ່ ຫຼື ໃຊ້ປຸ່ມບັນທຶກ PDF ແທນກໍໄດ້.',
+                  caption:
+                      'ເມື່ອມີ printer ທີ່ເຊື່ອມຢູ່ ລາຍການນີ້ຈະສະແດງໃຫ້ເລືອກທັນທີ.',
                 ),
               ),
             )
@@ -604,7 +585,7 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Widget _buildFooter() {
-    final canPrint = !_printing;
+    final canPrint = !_printing && (_isWebMode || _selectedPrinter != null);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
@@ -632,14 +613,16 @@ class _PrintDialogState extends State<_PrintDialog>
                 icon: Icons.download_rounded,
                 variant: AppButtonVariant.success,
               ),
-              const SizedBox(width: 12),
-              AppButton(
-                onPressed: canPrint ? _doPrint : null,
-                label: _printing ? 'ກຳລັງພິມ...' : 'ພິມ',
-                icon: Icons.print_rounded,
-                variant: AppButtonVariant.primary,
-                isLoading: _printing,
-              ),
+              if (!_isWebMode) ...[
+                const SizedBox(width: 12),
+                AppButton(
+                  onPressed: canPrint ? _doPrint : null,
+                  label: _printing ? 'ກຳລັງພິມ...' : 'ພິມ',
+                  icon: Icons.print_rounded,
+                  variant: AppButtonVariant.primary,
+                  isLoading: _printing,
+                ),
+              ],
             ],
           ),
         ],

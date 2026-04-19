@@ -160,19 +160,12 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
 
     final columns = [
       DataColumnDef<DormitoryModel>(
-        key: 'dormitoryId',
-        label: 'ລະຫັດ',
-        flex: 1,
-        render: (_, item) =>
-            Text('${item.dormitoryId}', style: const TextStyle(fontSize: 13)),
-      ),
-      DataColumnDef<DormitoryModel>(
         key: 'gender',
         label: 'ເພດ',
         flex: 2,
         render: (_, item) => Text(
           _normalizeGender(item.gender),
-          style: const TextStyle(fontSize: 13),
+          style: const TextStyle(fontSize: 14),
         ),
       ),
       DataColumnDef<DormitoryModel>(
@@ -181,7 +174,7 @@ class _DormitoryScreenState extends ConsumerState<DormitoryScreen> {
         flex: 3,
         render: (_, item) => Text(
           '${item.maxCapacity} ຄົນ',
-          style: const TextStyle(fontSize: 13),
+          style: const TextStyle(fontSize: 14),
         ),
       ),
     ];
