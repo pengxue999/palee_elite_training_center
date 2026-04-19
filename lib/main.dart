@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/constants/app_theme.dart';
+import 'package:palee_elite_training_center/widgets/startup_connection_guard.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/router/app_router.dart';
 
@@ -39,12 +40,14 @@ class MyApp extends ConsumerWidget {
       theme: AppThemeData.lightTheme,
       routerConfig: router,
       builder: (context, child) {
-        return DefaultTextStyle(
-          style: const TextStyle(
-            fontFamily: 'NotoSans Lao',
-            color: AppColors.foreground,
+        return StartupConnectionGuard(
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              fontFamily: 'NotoSansLao',
+              color: AppColors.foreground,
+            ),
+            child: child!,
           ),
-          child: child!,
         );
       },
     );
