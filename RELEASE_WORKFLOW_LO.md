@@ -204,3 +204,31 @@ flutter build windows --release --build-name 1.0.6
 6. ປ່ອຍ release ໃໝ່
 
 ແຕ່ຖ້າມີລູກຄ້າໃຊ້ເວີຊັນສູງກວ່າຢູ່ແລ້ວ ແນະນຳໃຫ້ໄປຕໍ່ `1.0.6` ຫຼື `1.1.0` ເລີຍ.
+
+## 11. ຖ້າຂຶ້ນ error `fatal: tag 'v1.0.0' already exists`
+
+ຄວາມໝາຍຄື ມີ tag ຊື່ `v1.0.0` ຢູ່ແລ້ວໃນ local repository.
+
+ກວດເບິ່ງ tag ທັງໝົດ:
+
+```powershell
+git tag
+```
+
+ຖ້າຕ້ອງການໃຫ້ `v1.0.0` ຊີ້ໄປຫາ commit ໃໝ່ ຕ້ອງລົບ tag ເກົ່າກ່ອນ:
+
+```powershell
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+ຖ້າຍັງບໍ່ຢາກລົບ tag ເກົ່າ ບໍ່ຄວນສ້າງຊື່ຊ້ຳ. ໃຫ້ໃຊ້ເວີຊັນໃໝ່ເລີຍ ເຊັ່ນ:
+
+```powershell
+git tag v1.0.6
+git push origin v1.0.6
+```
+
+ຖ້າມີລູກຄ້າໃຊ້ `1.0.5` ຫຼືສູງກວ່າຢູ່ແລ້ວ ບໍ່ຄວນ reset ກັບໄປ `1.0.0`. ໃຫ້ໄປຕໍ່ດ້ວຍເວີຊັນທີ່ສູງກວ່າເທົ່ານັ້ນ.
