@@ -14,6 +14,7 @@ import '../../widgets/app_data_table.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/app_toast.dart';
+import '../../widgets/loading_widget.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/teacher_info_card.dart';
 import 'widgets/admin_teacher_summary_card.dart';
@@ -792,7 +793,9 @@ class _TeachingTrackingScreenState
   }
 
   Widget _buildTable(bool isTeacher) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) {
+      return const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 40);
+    }
     if (_errorMessage != null) {
       return Center(
         child: Column(
@@ -1069,7 +1072,7 @@ class _TeachingTrackingScreenState
           if (_subAssignmentsLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Center(child: CircularProgressIndicator()),
+              child: LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 32),
             )
           else
             AppDropdown<String>(

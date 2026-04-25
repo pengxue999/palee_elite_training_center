@@ -13,6 +13,7 @@ import 'package:palee_elite_training_center/services/teacher_service.dart';
 import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
 import 'package:palee_elite_training_center/widgets/summary_card.dart';
 
@@ -485,7 +486,7 @@ class _ReportTeacherAttendanceScreenState
 
   Widget _buildDataTable() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...');
     }
 
     if (_errorMessage != null) {

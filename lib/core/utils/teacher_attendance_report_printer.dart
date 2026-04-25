@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/report_service.dart';
 import '../../widgets/app_toast.dart';
-import 'receipt_printer.dart';
+import 'pdf_print_dialog.dart';
 
 final ReportService _reportService = ReportService();
 
@@ -37,7 +37,7 @@ Future<void> showTeacherAttendanceReportPrintDialog({
 
     onPreviewReady?.call();
 
-    await showPdfPrintDialog(
+    await showPdfPreviewDialog(
       context: context,
       pdfBytes: pdfBytes,
       documentId: '${teacherPart}_$datePart',

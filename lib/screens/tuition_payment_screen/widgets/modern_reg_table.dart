@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/models/registration_model.dart';
 import 'package:palee_elite_training_center/screens/registration_screen/widgets/status_badge.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 
 class ModernRegTable extends StatefulWidget {
   final List<RegistrationModel> data;
@@ -42,7 +43,7 @@ class _ModernRegTableState extends State<ModernRegTable> {
           const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: widget.isLoading && widget.data.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 40)
                 : widget.data.isEmpty
                 ? _buildEmptyState()
                 : _buildTableBody(),
@@ -61,9 +62,7 @@ class _ModernRegTableState extends State<ModernRegTable> {
       ),
       child: Row(
         children: [
-          if (widget.showRadio) ...[
-            const SizedBox(width: 40),
-          ],
+          if (widget.showRadio) ...[const SizedBox(width: 40)],
           _headerCell('ເລກບິນ', 2),
           _headerCell('ຊື່ນັກຮຽນ', 2),
           _headerCell('ຕ້ອງຈ່າຍ', 2, alignment: Alignment.centerRight),
@@ -244,12 +243,12 @@ class _ModernRegTableState extends State<ModernRegTable> {
                 child: _buildStatusBadge(reg.status),
               ),
             ),
-
           ],
         ),
       ),
     );
   }
+
   Widget _buildStatusBadge(String status) {
     return StatusBadge(status: status);
   }

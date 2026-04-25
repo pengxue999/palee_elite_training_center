@@ -500,7 +500,7 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
                 const SizedBox(height: 16),
                 AppTextField(
                   label: 'ລາຍະລະອຽດ',
-                  hint: 'ລາຍລະອຽດເພີ່ມເຕີມ (ບໍ່ຈຳເປັນ)',
+                  hint: 'ລາຍລະອຽດເພີ່ມເຕີມ',
                   controller: _descriptionController,
                   maxLines: 2,
                   onChanged: (_) => setState(() {}),

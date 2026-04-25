@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:palee_elite_training_center/widgets/api_error_handler.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/format_utils.dart';
-import '../../core/utils/receipt_printer.dart';
+import '../../core/utils/registration_receipt_printer.dart';
 import '../../models/fee_model.dart';
 import '../../models/registration_model.dart';
 import '../../providers/registration_provider.dart';

@@ -12,6 +12,7 @@ import '../models/academic_year_model.dart';
 import '../models/report_models.dart';
 import '../widgets/app_card.dart';
 import '../widgets/custom_card.dart';
+import '../widgets/loading_widget.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -117,10 +118,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 );
 
                 if (dashboard.isLoading) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: CircularProgressIndicator(),
+                  return const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: LoadingWidget(
+                      message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...',
+                      size: 40,
                     ),
                   );
                 }
@@ -508,11 +510,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (reportState.isPopularSubjectsLoading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            ),
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 40),
           )
         else if (reportState.popularSubjectsError != null)
           _buildCompactErrorCard(reportState.popularSubjectsError!)

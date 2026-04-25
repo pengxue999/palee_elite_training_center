@@ -12,6 +12,7 @@ import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_card.dart';
 import 'package:palee_elite_training_center/widgets/app_data_table.dart';
 import 'package:palee_elite_training_center/widgets/app_dropdown.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 import 'package:palee_elite_training_center/widgets/print_preparation_overlay.dart';
 
 class ReportStudentScreen extends ConsumerStatefulWidget {
@@ -427,7 +428,7 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
 
   Widget _buildDataTable(ReportState state) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...');
     }
 
     if (state.error != null) {

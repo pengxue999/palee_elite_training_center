@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:palee_elite_training_center/widgets/app_text_field.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 import '../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -74,13 +75,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             children: [
               Icon(Icons.school_rounded, color: Colors.white, size: 48),
               SizedBox(height: 24),
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+              LoadingWidget(
+                size: 32,
+                backgroundColor: Color(0xFF0F1C3F),
+                messageColor: Colors.white,
               ),
             ],
           ),
@@ -243,22 +241,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          _FeatureRow(),
-
-                          const SizedBox(height: 28),
-                          Text(
-                            '© 2026 Palee Elite Training Center',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'NotoSansLao',
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.3),
-                              height: 1.6,
                             ),
                           ),
                         ],
@@ -454,55 +436,6 @@ class _LoginButtonState extends State<_LoginButton>
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FeatureRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    const chips = [
-      (Icons.people_alt_rounded, 'ຈັດການຂໍ້ມູນ'),
-      (Icons.assignment_rounded, 'ລົງທະບຽນ'),
-      (Icons.payments_rounded, 'ເບີກຈ່າຍເງີນສອນ'),
-      (Icons.bar_chart_rounded, 'ລາຍງານ'),
-    ];
-
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
-      children: chips
-          .map(
-            (c) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
-                  width: 0.8,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(c.$1, color: Colors.white.withOpacity(0.6), size: 12),
-                  const SizedBox(width: 5),
-                  Text(
-                    c.$2,
-                    style: TextStyle(
-                      fontFamily: 'NotoSansLao',
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }

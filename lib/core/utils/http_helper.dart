@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../constants/constant.dart';
+import 'network_status.dart';
 
 class HttpHelper {
   static final HttpHelper _instance = HttpHelper._internal();
@@ -193,6 +195,7 @@ class HttpHelper {
   }
 
   http.Response _handleResponse(http.Response response) {
+    NetworkStatusController.markOnline();
     return response;
   }
 
@@ -203,7 +206,11 @@ class HttpHelper {
 
   Exception _handleError(dynamic error) {
     if (error is SocketException) {
+      NetworkStatusController.markOffline();
       return Exception('ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບເຊີບເວີໄດ້: ${error.message}');
+    } else if (error is TimeoutException) {
+      NetworkStatusController.markOffline();
+      return Exception('ການເຊື່ອມຕໍ່ໝົດເວລາ ກະລຸນາລອງໃໝ່');
     } else if (error is HttpException) {
       return Exception('HTTP Error: ${error.message}');
     } else if (error is FormatException) {

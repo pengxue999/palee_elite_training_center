@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:palee_elite_training_center/core/utils/receipt_printer.dart';
+import 'package:palee_elite_training_center/core/utils/registration_receipt_printer.dart';
 import 'package:palee_elite_training_center/models/discount_model.dart';
 import 'package:palee_elite_training_center/models/province_model.dart';
 import 'package:palee_elite_training_center/models/district_model.dart';
@@ -16,6 +16,7 @@ import 'package:palee_elite_training_center/screens/registration_screen/widgets/
 import 'package:palee_elite_training_center/widgets/app_toast.dart';
 import 'package:palee_elite_training_center/widgets/app_button.dart';
 import 'package:palee_elite_training_center/widgets/app_dialog.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 import 'package:palee_elite_training_center/widgets/section_card.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/responsive_utils.dart';
@@ -298,7 +299,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) =>
-          const Center(child: CircularProgressIndicator()),
+          const LoadingWidget(message: 'ກຳລັງບັນທຶກ...'),
     );
 
     final request = RegistrationRequest(

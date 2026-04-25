@@ -5,6 +5,7 @@ import '../../../core/utils/format_utils.dart';
 import '../../../models/salary_payment_model.dart';
 import '../../../providers/salary_payment_provider.dart';
 import '../../../widgets/app_text_field.dart';
+import '../../../widgets/loading_widget.dart';
 import 'modern_teacher_table.dart';
 import 'payment_dialog.dart';
 
@@ -220,7 +221,10 @@ class _SalaryTeacherListState extends ConsumerState<SalaryTeacherList> {
                 ],
                 Expanded(
                   child: selectedMonth == null
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const LoadingWidget(
+                          message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...',
+                          size: 40,
+                        )
                       : Padding(
                           padding: EdgeInsets.all(tablePadding),
                           child: ModernTeacherTable(

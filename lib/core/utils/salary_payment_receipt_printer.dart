@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/salary_payment_service.dart';
 import '../../widgets/app_toast.dart';
-import 'receipt_printer.dart';
+import 'pdf_print_dialog.dart';
 
 final SalaryPaymentService _salaryPaymentService = SalaryPaymentService();
 
@@ -24,7 +24,7 @@ Future<void> showSalaryPaymentPrintDialog({
 
     onPreviewReady?.call();
 
-    await showPdfPrintDialog(
+    await showPdfPreviewDialog(
       context: context,
       pdfBytes: Uint8List.fromList(pdfBytes),
       documentId: paymentId,

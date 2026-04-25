@@ -3,6 +3,7 @@ import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/utils/responsive_utils.dart';
 import 'package:palee_elite_training_center/models/fee_model.dart';
 import 'package:palee_elite_training_center/screens/registration_screen/widgets/fee_card.dart';
+import 'package:palee_elite_training_center/widgets/loading_widget.dart';
 import 'package:palee_elite_training_center/widgets/section_card.dart';
 
 class SelectSubjectSection extends StatefulWidget {
@@ -212,11 +213,9 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
           const SizedBox(height: 20),
 
           if (widget.isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: CircularProgressIndicator(),
-              ),
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: LoadingWidget(message: 'ກຳລັງໂຫຼດວິຊາ...', size: 40),
             ),
           if (grouped.isEmpty)
             const Center(

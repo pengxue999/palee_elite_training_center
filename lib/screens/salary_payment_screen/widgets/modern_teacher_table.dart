@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../models/salary_payment_model.dart';
+import '../../../widgets/loading_widget.dart';
 
 class ModernTeacherTable extends StatelessWidget {
   final List<TeacherMonthlySummary> data;
@@ -34,7 +35,7 @@ class ModernTeacherTable extends StatelessWidget {
           const Divider(height: 1, color: AppColors.border),
           Expanded(
             child: isLoading && data.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 40)
                 : data.isEmpty
                 ? _buildEmptyState()
                 : _buildTableBody(),

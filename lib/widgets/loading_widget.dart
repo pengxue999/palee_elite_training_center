@@ -4,8 +4,16 @@ import '../core/constants/app_colors.dart';
 class LoadingWidget extends StatefulWidget {
   final String? message;
   final double size;
+  final Color backgroundColor;
+  final Color messageColor;
 
-  const LoadingWidget({super.key, this.message, this.size = 48});
+  const LoadingWidget({
+    super.key,
+    this.message,
+    this.size = 48,
+    this.backgroundColor = AppColors.background,
+    this.messageColor = AppColors.mutedForeground,
+  });
 
   @override
   State<LoadingWidget> createState() => _LoadingWidgetState();
@@ -25,9 +33,10 @@ class _LoadingWidgetState extends State<LoadingWidget>
       duration: const Duration(milliseconds: 1200),
     )..repeat();
 
-    _rotateAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.linear),
-    );
+    _rotateAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.linear));
     _scaleAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -71,8 +80,8 @@ class _LoadingWidgetState extends State<LoadingWidget>
                   child: Padding(
                     padding: const EdgeInsets.all(3),
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: AppColors.background,
+                      decoration: BoxDecoration(
+                        color: widget.backgroundColor,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -85,9 +94,9 @@ class _LoadingWidgetState extends State<LoadingWidget>
             const SizedBox(height: 16),
             Text(
               widget.message!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.mutedForeground,
+                color: widget.messageColor,
                 fontWeight: FontWeight.w500,
               ),
             ),

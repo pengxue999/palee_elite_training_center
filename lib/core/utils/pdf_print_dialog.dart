@@ -1,20 +1,14 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:file_selector/file_selector.dart';
-import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import '../../models/fee_model.dart';
+
 import '../../core/constants/app_colors.dart';
-import '../../services/registration_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_toast.dart';
-
-final RegistrationService _registrationService = RegistrationService();
 
 String _ensurePdfExtension(String path) {
   final trimmed = path.trim();
@@ -24,52 +18,7 @@ String _ensurePdfExtension(String path) {
   return '$trimmed.pdf';
 }
 
-bool _shouldUseServerReceiptRenderer() {
-  return true;
-}
-
-Future<void> showRegistrationPrintDialog({
-  required BuildContext context,
-  required String registrationId,
-  required String registrationDate,
-  required String studentName,
-  required List<FeeModel> selectedFees,
-  required int tuitionFee,
-  required String? dormitoryLabel,
-  required int dormitoryFee,
-  required int totalFee,
-  required int discountAmount,
-  required int netFee,
-  VoidCallback? onPreviewReady,
-}) async {
-  final pdfBytes = await _buildPdf(
-    registrationId: registrationId,
-    registrationDate: registrationDate,
-    studentName: studentName,
-    selectedFees: selectedFees,
-    tuitionFee: tuitionFee,
-    dormitoryLabel: dormitoryLabel,
-    dormitoryFee: dormitoryFee,
-    totalFee: totalFee,
-    discountAmount: discountAmount,
-    netFee: netFee,
-  );
-
-  if (pdfBytes == null) return;
-
-  if (context.mounted) {
-    onPreviewReady?.call();
-    await showPdfPrintDialog(
-      context: context,
-      pdfBytes: pdfBytes,
-      documentId: registrationId,
-      title: 'ພິມໃບລົງທະບຽນ',
-      fileNamePrefix: 'register',
-    );
-  }
-}
-
-Future<void> showPdfPrintDialog({
+Future<void> showPdfPreviewDialog({
   required BuildContext context,
   required Uint8List pdfBytes,
   required String documentId,
@@ -88,34 +37,6 @@ Future<void> showPdfPrintDialog({
     ),
   );
 }
-
-Future<void> printRegistrationReceipt({
-  required BuildContext context,
-  required String registrationId,
-  required String registrationDate,
-  required String studentName,
-  required List<FeeModel> selectedFees,
-  required int tuitionFee,
-  required String? dormitoryLabel,
-  required int dormitoryFee,
-  required int totalFee,
-  required int discountAmount,
-  required int netFee,
-  VoidCallback? onPreviewReady,
-}) => showRegistrationPrintDialog(
-  context: context,
-  registrationId: registrationId,
-  registrationDate: registrationDate,
-  studentName: studentName,
-  selectedFees: selectedFees,
-  tuitionFee: tuitionFee,
-  dormitoryLabel: dormitoryLabel,
-  dormitoryFee: dormitoryFee,
-  totalFee: totalFee,
-  discountAmount: discountAmount,
-  netFee: netFee,
-  onPreviewReady: onPreviewReady,
-);
 
 class _PrintDialog extends StatefulWidget {
   final Uint8List pdfBytes;
@@ -155,6 +76,28 @@ class _PrintDialogState extends State<_PrintDialog>
         normalized.contains('xps');
   }
 
+  List<Printer> _filterAvailablePrinters(List<Printer> printers) {
+    final visiblePrinters = defaultTargetPlatform == TargetPlatform.windows
+        ? () {
+            final physicalPrinters = printers
+                .where((printer) => !_isVirtualPdfPrinter(printer))
+                .toList();
+            return physicalPrinters.isNotEmpty ? physicalPrinters : printers;
+          }()
+        : printers;
+
+    return visiblePrinters.where((printer) => printer.isAvailable).toList();
+  }
+
+  Printer? _pickDefaultPrinter(List<Printer> printers) {
+    if (printers.isEmpty) {
+      return null;
+    }
+
+    final defaultPrinter = printers.where((printer) => printer.isDefault);
+    return defaultPrinter.isNotEmpty ? defaultPrinter.first : printers.first;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -187,23 +130,11 @@ class _PrintDialogState extends State<_PrintDialog>
 
     try {
       final list = await Printing.listPrinters();
-      final availablePrinters = defaultTargetPlatform == TargetPlatform.windows
-          ? () {
-              final physicalPrinters = list
-                  .where((printer) => !_isVirtualPdfPrinter(printer))
-                  .toList();
-              return physicalPrinters.isNotEmpty ? physicalPrinters : list;
-            }()
-          : list;
+      final availablePrinters = _filterAvailablePrinters(list);
       if (mounted) {
-        final defaultPrinter = availablePrinters.where(
-          (printer) => printer.isDefault,
-        );
         setState(() {
           _printers = availablePrinters;
-          _selectedPrinter = defaultPrinter.isNotEmpty
-              ? defaultPrinter.first
-              : (availablePrinters.isNotEmpty ? availablePrinters.first : null);
+          _selectedPrinter = _pickDefaultPrinter(availablePrinters);
           _loadingPrinters = false;
         });
       }
@@ -212,26 +143,75 @@ class _PrintDialogState extends State<_PrintDialog>
     }
   }
 
+  Future<Printer?> _refreshSelectedPrinter() async {
+    final list = await Printing.listPrinters();
+    final availablePrinters = _filterAvailablePrinters(list);
+    final activePrinter = _selectedPrinter;
+
+    Printer? matchedPrinter;
+    if (activePrinter != null) {
+      for (final printer in availablePrinters) {
+        if (printer.url == activePrinter.url ||
+            printer.name == activePrinter.name) {
+          matchedPrinter = printer;
+          break;
+        }
+      }
+    }
+
+    matchedPrinter ??= _pickDefaultPrinter(availablePrinters);
+
+    if (mounted) {
+      setState(() {
+        _printers = availablePrinters;
+        _selectedPrinter = matchedPrinter;
+      });
+    }
+
+    return matchedPrinter;
+  }
+
   Future<void> _doPrint() async {
     if (_isWebMode) {
       await _doSavePdf();
       return;
     }
 
-    if (_selectedPrinter == null) {
-      await _doSavePdf();
-      return;
-    }
-
     setState(() => _printing = true);
     try {
-      await Printing.directPrintPdf(
-        printer: _selectedPrinter!,
-        onLayout: (_) async => widget.pdfBytes,
-        name: '${widget.fileNamePrefix}_${widget.documentId}',
-      );
+      final selectedPrinter = await _refreshSelectedPrinter();
+
+      if (selectedPrinter == null) {
+        if (mounted) {
+          setState(() => _printing = false);
+          _showErrorSnackBar(
+            'ບໍ່ພົບ printer ທີ່ພ້ອມໃຊ້ງານ. ກະລຸນາເຊື່ອມຕໍ່ printer ແລ້ວລອງໃໝ່.',
+          );
+        }
+        return;
+      }
+
+      final printed = defaultTargetPlatform == TargetPlatform.windows
+          ? await Printing.layoutPdf(
+              onLayout: (_) async => widget.pdfBytes,
+              name: '${widget.fileNamePrefix}_${widget.documentId}',
+              dynamicLayout: false,
+              usePrinterSettings: true,
+            )
+          : await Printing.directPrintPdf(
+              printer: selectedPrinter,
+              onLayout: (_) async => widget.pdfBytes,
+              name: '${widget.fileNamePrefix}_${widget.documentId}',
+            );
 
       if (!mounted) return;
+
+      setState(() => _printing = false);
+
+      if (!printed) {
+        _showErrorSnackBar('ຍົກເລີກການພິມ ຫຼື printer ບໍ່ພ້ອມໃຊ້ງານ.');
+        return;
+      }
 
       Navigator.of(context, rootNavigator: false).pop();
       _showSuccessSnackBar('ພິມສຳເລັດ!');
@@ -417,7 +397,6 @@ class _PrintDialogState extends State<_PrintDialog>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildPreviewSidePanel(),
-
         Expanded(
           child: Container(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
@@ -790,658 +769,4 @@ class _PrinterTile extends StatelessWidget {
       ),
     );
   }
-}
-
-Future<Uint8List?> _buildPdf({
-  required String registrationId,
-  required String registrationDate,
-  required String studentName,
-  required List<FeeModel> selectedFees,
-  required int tuitionFee,
-  required String? dormitoryLabel,
-  required int dormitoryFee,
-  required int totalFee,
-  required int discountAmount,
-  required int netFee,
-}) async {
-  try {
-    if (_shouldUseServerReceiptRenderer()) {
-      try {
-        return await _registrationService.createRegistrationReceiptPdf(
-          registrationId: registrationId,
-          registrationDate: _normalizeReceiptDateForApi(registrationDate),
-          studentName: studentName,
-          selectedFees: selectedFees
-              .map(
-                (fee) => {
-                  'subject_name': fee.subjectName,
-                  'level_name': fee.levelName,
-                  'fee': fee.fee.toInt(),
-                },
-              )
-              .toList(growable: false),
-          tuitionFee: tuitionFee,
-          dormitoryLabel: dormitoryLabel,
-          dormitoryFee: dormitoryFee,
-          totalFee: totalFee,
-          discountAmount: discountAmount,
-          netFee: netFee,
-        );
-      } catch (_) {}
-    }
-
-    final receiptImageBytes = await _buildReceiptImage(
-      registrationId: registrationId,
-      registrationDate: registrationDate,
-      studentName: studentName,
-      selectedFees: selectedFees,
-      tuitionFee: tuitionFee,
-      dormitoryLabel: dormitoryLabel,
-      dormitoryFee: dormitoryFee,
-      totalFee: totalFee,
-      discountAmount: discountAmount,
-      netFee: netFee,
-    );
-
-    final doc = pw.Document();
-    final receiptImage = pw.MemoryImage(receiptImageBytes);
-
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.zero,
-        build: (context) {
-          return pw.SizedBox.expand(
-            child: pw.Image(receiptImage, fit: pw.BoxFit.fill),
-          );
-        },
-      ),
-    );
-
-    return doc.save();
-  } catch (_) {
-    return null;
-  }
-}
-
-String _normalizeReceiptDateForApi(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty) {
-    return trimmed;
-  }
-
-  final direct = DateTime.tryParse(trimmed);
-  if (direct != null) {
-    return direct.toIso8601String();
-  }
-
-  final knownFormats = [
-    DateFormat('dd/MM/yyyy'),
-    DateFormat('dd-MM-yyyy HH:mm:ss'),
-    DateFormat('dd-MM-yyyy'),
-  ];
-
-  for (final format in knownFormats) {
-    try {
-      return format.parseStrict(trimmed).toIso8601String();
-    } catch (_) {
-      // Try the next supported display format.
-    }
-  }
-
-  return trimmed;
-}
-
-Future<Uint8List> _buildReceiptImage({
-  required String registrationId,
-  required String registrationDate,
-  required String studentName,
-  required List<FeeModel> selectedFees,
-  required int tuitionFee,
-  required String? dormitoryLabel,
-  required int dormitoryFee,
-  required int totalFee,
-  required int discountAmount,
-  required int netFee,
-}) async {
-  const pageWidth = 1240.0;
-  const pageHeight = 1754.0;
-  const fontScale = 1.4;
-  const horizontalPadding = 72.0;
-  const topPadding = 74.0;
-  const blockGap = 24.0;
-
-  final recorder = ui.PictureRecorder();
-  final canvas = Canvas(
-    recorder,
-    const Rect.fromLTWH(0, 0, pageWidth, pageHeight),
-  );
-
-  canvas.drawRect(
-    const Rect.fromLTWH(0, 0, pageWidth, pageHeight),
-    Paint()..color = Colors.white,
-  );
-
-  final textColor = const Color(0xFF252525);
-  final mutedColor = const Color(0xFF8A8A8A);
-  final borderColor = const Color(0xFFE4E4E4);
-  final strongBorderColor = const Color(0xFFBDBDBD);
-  final successColor = const Color(0xFF15803D);
-
-  void drawRule({
-    required Offset start,
-    required Offset end,
-    required Color color,
-    double strokeWidth = 1,
-  }) {
-    canvas.drawLine(
-      start,
-      end,
-      Paint()
-        ..color = color
-        ..strokeWidth = strokeWidth,
-    );
-  }
-
-  String fmt(int n) => NumberFormat('#,###').format(n);
-
-  String fmtDate(String value) {
-    try {
-      final parsed = DateTime.parse(value);
-      final hasTime =
-          parsed.hour != 0 || parsed.minute != 0 || parsed.second != 0;
-      return hasTime
-          ? DateFormat('dd-MM-yyyy HH:mm:ss').format(parsed)
-          : DateFormat('dd/MM/yyyy').format(parsed);
-    } catch (_) {
-      return value;
-    }
-  }
-
-  TextStyle style({
-    required double fontSize,
-    FontWeight fontWeight = FontWeight.w400,
-    Color color = Colors.black,
-    double height = 1.3,
-  }) {
-    return TextStyle(
-      fontFamily: 'NotoSansLao',
-      fontSize: fontSize * fontScale,
-      fontWeight: fontWeight,
-      color: color,
-      height: height,
-    );
-  }
-
-  TextPainter layoutText(
-    String text,
-    TextStyle textStyle, {
-    double? maxWidth,
-    TextAlign textAlign = TextAlign.left,
-    int? maxLines,
-  }) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: textStyle),
-      textAlign: textAlign,
-      textDirection: ui.TextDirection.ltr,
-      maxLines: maxLines,
-      ellipsis: maxLines == null ? null : '...',
-    );
-    painter.layout(maxWidth: maxWidth ?? pageWidth);
-    return painter;
-  }
-
-  Size paintText(
-    String text,
-    TextStyle textStyle,
-    Offset offset, {
-    double? maxWidth,
-    TextAlign textAlign = TextAlign.left,
-    int? maxLines,
-  }) {
-    final painter = layoutText(
-      text,
-      textStyle,
-      maxWidth: maxWidth,
-      textAlign: textAlign,
-      maxLines: maxLines,
-    );
-
-    final dx = switch (textAlign) {
-      TextAlign.right || TextAlign.end => offset.dx - painter.width,
-      TextAlign.center => offset.dx - (painter.width / 2),
-      _ => offset.dx,
-    };
-
-    painter.paint(canvas, Offset(dx, offset.dy));
-    return painter.size;
-  }
-
-  void drawDashedLine({
-    required Offset start,
-    required double width,
-    required Color color,
-    double dashWidth = 10,
-    double gapWidth = 7,
-  }) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5;
-    var currentX = start.dx;
-    final endX = start.dx + width;
-    while (currentX < endX) {
-      final nextX = math.min(currentX + dashWidth, endX);
-      canvas.drawLine(
-        Offset(currentX, start.dy),
-        Offset(nextX, start.dy),
-        paint,
-      );
-      currentX = nextX + gapWidth;
-    }
-  }
-
-  final orgLaoStyle = style(
-    fontSize: 24,
-    fontWeight: FontWeight.w700,
-    color: textColor,
-    height: 1.15,
-  );
-  final orgEnStyle = style(
-    fontSize: 13,
-    fontWeight: FontWeight.w500,
-    color: mutedColor,
-    height: 1.1,
-  );
-  final smallLabelStyle = style(fontSize: 12, color: mutedColor);
-  final dateStyle = style(
-    fontSize: 15,
-    fontWeight: FontWeight.w500,
-    color: textColor,
-    height: 1.2,
-  );
-  final titleStyle = style(
-    fontSize: 38,
-    fontWeight: FontWeight.w800,
-    color: textColor,
-  );
-  final infoLabelStyle = style(fontSize: 13, color: mutedColor, height: 1.2);
-  final infoValueStyle = style(
-    fontSize: 15,
-    fontWeight: FontWeight.w500,
-    color: textColor,
-    height: 1.2,
-  );
-  final tableHeaderStyle = style(
-    fontSize: 13,
-    fontWeight: FontWeight.w700,
-    color: mutedColor,
-  );
-  final tableCellStyle = style(fontSize: 15, color: textColor, height: 1.25);
-  final summaryLabelStyle = style(fontSize: 15, color: mutedColor, height: 1.2);
-  final summaryValueStyle = style(
-    fontSize: 15,
-    fontWeight: FontWeight.w500,
-    color: textColor,
-  );
-  final amountDueLabelStyle = style(
-    fontSize: 18,
-    fontWeight: FontWeight.w800,
-    color: textColor,
-  );
-  final amountDueValueStyle = style(
-    fontSize: 22,
-    fontWeight: FontWeight.w800,
-    color: textColor,
-  );
-  final footerLaoStyle = style(fontSize: 14, color: mutedColor, height: 1.15);
-  final footerEnStyle = style(fontSize: 12, color: mutedColor, height: 1.1);
-
-  var y = topPadding;
-
-  paintText(
-    'ສູນປາລີ ບຳລຸງນັກຮຽນເກັ່ງ',
-    orgLaoStyle,
-    Offset(horizontalPadding, y),
-  );
-  y += 46;
-  paintText(
-    'Palee Elite Training Center',
-    orgEnStyle,
-    Offset(horizontalPadding, y),
-  );
-
-  final headerRuleY = topPadding + 92;
-  drawRule(
-    start: Offset(0, headerRuleY),
-    end: Offset(pageWidth, headerRuleY),
-    color: borderColor,
-    strokeWidth: 1.5,
-  );
-
-  paintText(
-    'ວັນທີ',
-    smallLabelStyle,
-    Offset(pageWidth - horizontalPadding, topPadding),
-    textAlign: TextAlign.right,
-  );
-  paintText(
-    fmtDate(registrationDate),
-    dateStyle,
-    Offset(pageWidth - horizontalPadding, topPadding + 24),
-    textAlign: TextAlign.right,
-  );
-
-  paintText(
-    'ໃບລົງທະບຽນ',
-    titleStyle,
-    Offset(pageWidth / 2, headerRuleY + 92),
-    textAlign: TextAlign.center,
-  );
-
-  var infoY = headerRuleY + 182;
-  final registrationLabelPainter = layoutText(
-    'ລະຫັດໃບລົງທະບຽນ:',
-    infoLabelStyle,
-    maxLines: 1,
-  );
-  final studentLabelPainter = layoutText(
-    'ຊື່ ແລະ ນາມສະກຸນ:',
-    infoLabelStyle,
-    maxLines: 1,
-  );
-  const infoColumnGap = 6.0;
-  final registrationValueX =
-      horizontalPadding + registrationLabelPainter.width + infoColumnGap;
-  final registrationValueWidth =
-      pageWidth - registrationValueX - horizontalPadding;
-  final studentValueX =
-      horizontalPadding + studentLabelPainter.width + infoColumnGap;
-  final studentValueWidth = pageWidth - studentValueX - horizontalPadding;
-
-  final registrationValuePainter = layoutText(
-    registrationId,
-    infoValueStyle,
-    maxWidth: registrationValueWidth,
-    maxLines: 1,
-  );
-  registrationLabelPainter.paint(canvas, Offset(horizontalPadding, infoY));
-  registrationValuePainter.paint(canvas, Offset(registrationValueX, infoY));
-
-  infoY +=
-      math.max(
-        registrationLabelPainter.height,
-        registrationValuePainter.height,
-      ) +
-      14;
-
-  final studentValuePainter = layoutText(
-    studentName,
-    infoValueStyle,
-    maxWidth: studentValueWidth,
-    maxLines: 2,
-  );
-  studentLabelPainter.paint(canvas, Offset(horizontalPadding, infoY));
-  studentValuePainter.paint(canvas, Offset(studentValueX, infoY));
-
-  var tableY =
-      infoY +
-      math.max(studentLabelPainter.height, studentValuePainter.height) +
-      44;
-
-  drawRule(
-    start: Offset(0, tableY - 34),
-    end: Offset(pageWidth, tableY - 34),
-    color: borderColor,
-    strokeWidth: 1.3,
-  );
-
-  final tableLeft = horizontalPadding;
-  final tableRight = pageWidth - horizontalPadding;
-  final tableWidth = tableRight - tableLeft;
-  final subjectWidth = tableWidth * 0.46;
-  final levelWidth = tableWidth * 0.18;
-  final amountWidth = tableWidth - subjectWidth - levelWidth;
-
-  paintText('ລາຍວິຊາ', tableHeaderStyle, Offset(tableLeft, tableY));
-  paintText(
-    'ຊັ້ນຮຽນ/ລະດັບ',
-    tableHeaderStyle,
-    Offset(tableLeft + subjectWidth + (levelWidth / 2), tableY),
-    textAlign: TextAlign.center,
-    maxWidth: levelWidth,
-  );
-  paintText(
-    'ຄ່າຮຽນ',
-    tableHeaderStyle,
-    Offset(tableRight, tableY),
-    textAlign: TextAlign.right,
-    maxWidth: amountWidth,
-  );
-
-  tableY += 34;
-  drawRule(
-    start: Offset(tableLeft, tableY),
-    end: Offset(tableRight, tableY),
-    color: borderColor,
-    strokeWidth: 1.5,
-  );
-
-  tableY += blockGap;
-  for (final fee in selectedFees) {
-    final subjectPainter = layoutText(
-      fee.subjectName,
-      tableCellStyle,
-      maxWidth: subjectWidth - 12,
-    );
-    final levelPainter = layoutText(
-      fee.levelName,
-      tableCellStyle,
-      maxWidth: levelWidth - 12,
-      textAlign: TextAlign.center,
-    );
-    final amountPainter = layoutText(
-      '${fmt(fee.fee.toInt())} ກີບ',
-      tableCellStyle,
-      maxWidth: amountWidth - 12,
-      textAlign: TextAlign.right,
-    );
-
-    final rowHeight = math.max(
-      36.0,
-      math.max(
-            subjectPainter.height,
-            math.max(levelPainter.height, amountPainter.height),
-          ) +
-          22,
-    );
-
-    subjectPainter.paint(canvas, Offset(tableLeft, tableY));
-    levelPainter.paint(
-      canvas,
-      Offset(
-        tableLeft + subjectWidth + ((levelWidth - levelPainter.width) / 2),
-        tableY,
-      ),
-    );
-    amountPainter.paint(
-      canvas,
-      Offset(tableRight - amountPainter.width, tableY),
-    );
-
-    tableY += rowHeight;
-    drawRule(
-      start: Offset(tableLeft, tableY),
-      end: Offset(tableRight, tableY),
-      color: borderColor,
-      strokeWidth: 1.2,
-    );
-    tableY += 18;
-  }
-
-  var summaryY = tableY + 28;
-  final summaryRight = tableRight;
-  final summaryValueWidth = 220.0;
-  final summaryGap = 26.0;
-  final summaryLabelRight = summaryRight - summaryValueWidth - summaryGap;
-
-  paintText(
-    'ຄ່າຮຽນລວມ:',
-    summaryLabelStyle,
-    Offset(summaryLabelRight, summaryY),
-    textAlign: TextAlign.right,
-    maxWidth: 240,
-  );
-  paintText(
-    '${fmt(tuitionFee)} ກີບ',
-    summaryValueStyle,
-    Offset(summaryRight, summaryY),
-    textAlign: TextAlign.right,
-    maxWidth: summaryValueWidth,
-  );
-
-  summaryY += 30;
-  if (dormitoryFee > 0) {
-    paintText(
-      '${dormitoryLabel ?? 'ຄ່າອື່ນໆ'}:',
-      summaryLabelStyle,
-      Offset(summaryLabelRight, summaryY),
-      textAlign: TextAlign.right,
-      maxWidth: 240,
-    );
-    paintText(
-      '${fmt(dormitoryFee)} ກີບ',
-      summaryValueStyle,
-      Offset(summaryRight, summaryY),
-      textAlign: TextAlign.right,
-      maxWidth: summaryValueWidth,
-    );
-    summaryY += 30;
-  }
-
-  paintText(
-    'ລວມທັງໝົດ:',
-    summaryLabelStyle,
-    Offset(summaryLabelRight, summaryY),
-    textAlign: TextAlign.right,
-    maxWidth: 240,
-  );
-  paintText(
-    '${fmt(totalFee)} ກີບ',
-    summaryValueStyle,
-    Offset(summaryRight, summaryY),
-    textAlign: TextAlign.right,
-    maxWidth: summaryValueWidth,
-  );
-
-  summaryY += 30;
-  if (discountAmount > 0) {
-    paintText(
-      'ສ່ວນຫຼຸດ:',
-      style(fontSize: 15, color: successColor),
-      Offset(summaryLabelRight, summaryY),
-      textAlign: TextAlign.right,
-      maxWidth: 240,
-    );
-    paintText(
-      '- ${fmt(discountAmount)} ກີບ',
-      style(fontSize: 15, color: successColor, fontWeight: FontWeight.w600),
-      Offset(summaryRight, summaryY),
-      textAlign: TextAlign.right,
-      maxWidth: summaryValueWidth,
-    );
-    summaryY += 38;
-  } else {
-    summaryY += 8;
-  }
-
-  drawDashedLine(
-    start: Offset(summaryRight - 320, summaryY),
-    width: 320,
-    color: strongBorderColor,
-    dashWidth: 9,
-    gapWidth: 5,
-  );
-
-  summaryY += 14;
-  paintText(
-    'ຕ້ອງຈ່າຍ:',
-    amountDueLabelStyle,
-    Offset(summaryLabelRight, summaryY),
-    textAlign: TextAlign.right,
-    maxWidth: 260,
-  );
-  paintText(
-    '${fmt(netFee)} ກີບ',
-    amountDueValueStyle,
-    Offset(summaryRight, summaryY - 6),
-    textAlign: TextAlign.right,
-    maxWidth: summaryValueWidth,
-  );
-
-  final footerLineY = math.min(summaryY + 88, pageHeight - 170);
-  drawDashedLine(
-    start: Offset(horizontalPadding, footerLineY),
-    width: pageWidth - (horizontalPadding * 2),
-    color: borderColor,
-    dashWidth: 7,
-    gapWidth: 4,
-  );
-  canvas.drawCircle(
-    Offset(horizontalPadding, footerLineY),
-    14,
-    Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill,
-  );
-  canvas.drawCircle(
-    Offset(horizontalPadding, footerLineY),
-    14,
-    Paint()
-      ..color = strongBorderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2,
-  );
-  canvas.drawCircle(
-    Offset(pageWidth - horizontalPadding, footerLineY),
-    14,
-    Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill,
-  );
-  canvas.drawCircle(
-    Offset(pageWidth - horizontalPadding, footerLineY),
-    14,
-    Paint()
-      ..color = strongBorderColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2,
-  );
-  paintText(
-    'ຂໍໃຫ້ທ່ານ ຈົ່ງໂຊກດີ',
-    footerLaoStyle,
-    Offset(horizontalPadding, footerLineY + 48),
-    maxWidth: 380,
-  );
-  paintText(
-    'Good luck with your studies!',
-    footerEnStyle,
-    Offset(horizontalPadding, footerLineY + 78),
-    maxWidth: 420,
-  );
-  paintText(
-    '#$registrationId',
-    footerEnStyle,
-    Offset(pageWidth - horizontalPadding, footerLineY + 62),
-    textAlign: TextAlign.right,
-    maxWidth: 180,
-  );
-
-  final picture = recorder.endRecording();
-  final image = await picture.toImage(pageWidth.toInt(), pageHeight.toInt());
-  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-  if (byteData == null) {
-    throw StateError('Unable to encode receipt image.');
-  }
-
-  return byteData.buffer.asUint8List();
 }

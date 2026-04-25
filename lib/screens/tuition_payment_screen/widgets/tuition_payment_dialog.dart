@@ -8,6 +8,7 @@ import '../../../models/tuition_payment_model.dart';
 import '../../../providers/tuition_payment_provider.dart';
 import '../../../widgets/app_text_field.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/loading_widget.dart';
 
 class TuitionPaymentDialog extends ConsumerStatefulWidget {
   final RegistrationModel registration;
@@ -405,7 +406,7 @@ class _TuitionPaymentDialogState extends ConsumerState<TuitionPaymentDialog> {
                 ),
               ),
             ] else ...[
-              const Center(child: CircularProgressIndicator()),
+              const LoadingWidget(message: 'ກຳລັງໂຫຼດຂໍ້ມູນ...', size: 40),
             ],
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:palee_elite_training_center/core/constants/app_colors.dart';
 import 'package:palee_elite_training_center/core/constants/constant.dart';
+import 'package:palee_elite_training_center/core/utils/network_status.dart';
 
 import 'app_button.dart';
 
@@ -24,7 +25,29 @@ class _StartupConnectionGuardState extends State<StartupConnectionGuard> {
   @override
   void initState() {
     super.initState();
+    NetworkStatusController.status.addListener(_handleNetworkStatusChanged);
     unawaited(_runStartupCheck());
+  }
+
+  @override
+  void dispose() {
+    NetworkStatusController.status.removeListener(_handleNetworkStatusChanged);
+    super.dispose();
+  }
+
+  void _handleNetworkStatusChanged() {
+    if (!mounted) return;
+
+    final nextStatus =
+        NetworkStatusController.status.value == NetworkStatus.offline
+        ? _StartupConnectionStatus.offline
+        : _StartupConnectionStatus.online;
+
+    if (_status == nextStatus) return;
+
+    setState(() {
+      _status = nextStatus;
+    });
   }
 
   Future<void> _runStartupCheck() async {
@@ -36,6 +59,12 @@ class _StartupConnectionGuardState extends State<StartupConnectionGuard> {
           ? _StartupConnectionStatus.online
           : _StartupConnectionStatus.offline;
     });
+
+    if (isConnected) {
+      NetworkStatusController.markOnline();
+    } else {
+      NetworkStatusController.markOffline();
+    }
   }
 
   Future<bool> _canReachBackend() async {
@@ -62,19 +91,14 @@ class _StartupConnectionGuardState extends State<StartupConnectionGuard> {
   @override
   Widget build(BuildContext context) {
     switch (_status) {
+      case _StartupConnectionStatus.checking:
       case _StartupConnectionStatus.online:
         return widget.child;
-      case _StartupConnectionStatus.checking:
-        return const _StartupBlockingView(
-          showProgress: true,
-          title: 'ກຳລັງກວດສອບການເຊື່ອມຕໍ່',
-          message: 'ກະລຸນາລໍຖ້າຊົ່ວຄາວ...',
-        );
       case _StartupConnectionStatus.offline:
         return _StartupBlockingView(
           title: 'ຍັງບໍ່ມີການເຊື່ອມຕໍ່ອິນເຕີເນັດ',
           message:
-              'ກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດ ຫຼື ກວດສອບການເຂົ້າເຖິງ server ກ່ອນ ແລ້ວຈຶ່ງກົດລອງໃໝ່.',
+              'ກະລຸນາເຊື່ອມຕໍ່ອິນເຕີເນັດ ຫຼື ກວດສອບການເຂົ້າເຖິງ server ກ່ອນ.',
           icon: Icons.wifi_off_rounded,
           iconColor: AppColors.warning,
           action: AppButton(
@@ -99,7 +123,6 @@ class _StartupBlockingView extends StatelessWidget {
     required this.message,
     this.icon = Icons.cloud_off_rounded,
     this.iconColor = AppColors.primary,
-    this.showProgress = false,
     this.action,
   });
 
@@ -107,7 +130,6 @@ class _StartupBlockingView extends StatelessWidget {
   final String message;
   final IconData icon;
   final Color iconColor;
-  final bool showProgress;
   final Widget? action;
 
   @override
@@ -159,15 +181,7 @@ class _StartupBlockingView extends StatelessWidget {
                         color: iconColor.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: showProgress
-                          ? Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 3,
-                                color: iconColor,
-                              ),
-                            )
-                          : Icon(icon, size: 32, color: iconColor),
+                      child: Icon(icon, size: 32, color: iconColor),
                     ),
                     const SizedBox(height: 20),
                     Text(
