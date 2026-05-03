@@ -8,11 +8,14 @@ import 'package:palee_elite_training_center/screens/registration_screen/widgets/
 class RightPanel extends StatelessWidget {
   final int step3num, step4num, step5num;
   final List<FeeModel> selectedFees;
+  final Set<String> lockedFeeIds;
   final ValueChanged<String> onRemove;
   final String academicYear;
   final String registrationDate;
   final String? studentName;
   final int tuitionFee;
+  final int mandatoryFee;
+  final String mandatoryFeeLabel;
   final int totalFee;
   final int discount;
   final int netFee;
@@ -21,6 +24,7 @@ class RightPanel extends StatelessWidget {
   final ValueChanged<String?> onDiscountChanged;
   final int otherFee;
   final String otherFeeLabel;
+  final bool showOtherFeeField;
   final TextEditingController otherFeeController;
   final ValueChanged<String> onOtherFeeChanged;
   final Map<String, String> scholarshipStatusByFee;
@@ -39,11 +43,14 @@ class RightPanel extends StatelessWidget {
     required this.step4num,
     required this.step5num,
     required this.selectedFees,
+    this.lockedFeeIds = const {},
     required this.onRemove,
     required this.academicYear,
     required this.registrationDate,
     required this.studentName,
     required this.tuitionFee,
+    required this.mandatoryFee,
+    required this.mandatoryFeeLabel,
     required this.totalFee,
     required this.discount,
     required this.netFee,
@@ -52,6 +59,7 @@ class RightPanel extends StatelessWidget {
     required this.onDiscountChanged,
     required this.otherFee,
     required this.otherFeeLabel,
+    required this.showOtherFeeField,
     required this.otherFeeController,
     required this.onOtherFeeChanged,
     required this.scholarshipStatusByFee,
@@ -72,6 +80,7 @@ class RightPanel extends StatelessWidget {
         RegistrationDetailCard(
           stepNum: step3num,
           fees: selectedFees,
+          lockedFeeIds: lockedFeeIds,
           onRemove: onRemove,
           scholarshipStatusByFee: scholarshipStatusByFee,
           onScholarshipChanged: onScholarshipChanged,
@@ -83,8 +92,11 @@ class RightPanel extends StatelessWidget {
           registrationDate: registrationDate,
           studentName: studentName,
           tuitionFee: tuitionFee,
+          mandatoryFee: mandatoryFee,
+          mandatoryFeeLabel: mandatoryFeeLabel,
           otherFee: otherFee,
           otherFeeLabel: otherFeeLabel,
+          showOtherFeeField: showOtherFeeField,
           totalFee: totalFee,
           discount: discount,
           netFee: netFee,

@@ -129,7 +129,7 @@ class _UnitScreenState extends ConsumerState<UnitScreen> {
     final isLoading = state.isLoading && state.units.isEmpty;
 
     final columns = [
-      DataColumnDef<UnitModel>(key: 'unitId', label: 'ລະຫັດ', flex: 1),
+      
       DataColumnDef<UnitModel>(key: 'unitName', label: 'ຊື່ຫົວໜ່ວຍ', flex: 5),
     ];
 

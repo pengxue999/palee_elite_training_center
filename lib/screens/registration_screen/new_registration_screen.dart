@@ -72,6 +72,9 @@ class NewRegistrationScreen extends ConsumerStatefulWidget {
 }
 
 class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
+  static const String _mandatorySubjectName = 'ຄະນິດສາດຄິດໄວ';
+  static const int _mandatoryFeeAmount = 300000;
+
   int _currentStep = 1;
   bool _isPreparingPrint = false;
   final _steps = const [
@@ -96,7 +99,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
 
   static const Map<String, int> _dormitoryFees = <String, int>{
     'ຫໍພັກໃນ': 200000,
-    'ຫໍພັກນອກ': 100000,
+    'ຫໍພັກນອກ': 0,
   };
 
   List<FeeModel> get _fees => ref.watch(feeProvider).fees;
@@ -150,7 +153,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
         .toList();
   }
 
-  int get _tuitionFee => _selectedFeeIds.fold(0, (sum, feeId) {
+  int get _selectedSubjectFee => _selectedFeeIds.fold(0, (sum, feeId) {
     final fee = _fees.firstWhere(
       (f) => f.feeId == feeId,
       orElse: () => const FeeModel(
@@ -165,7 +168,20 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
     return sum + fee.fee.toInt();
   });
 
-  int get _totalFee => _tuitionFee + _otherFeeAmount;
+  int get _mandatoryFee => _selectedFeeIds.isEmpty ? 0 : _mandatoryFeeAmount;
+
+  String get _mandatoryFeeLabel => 'ຄ່າວິຊາບັງຄັບ ($_mandatorySubjectName)';
+
+  bool get _isOutsideDormitory {
+    final dormitory = _selectedStudent?.dormitoryName?.trim() ?? '';
+    return dormitory.contains('ຫໍພັກນອກ');
+  }
+
+  bool get _showOtherFeeField => !_isOutsideDormitory;
+
+  int get _tuitionFee => _selectedSubjectFee;
+
+  int get _totalFee => _selectedSubjectFee + _mandatoryFee + _otherFeeAmount;
 
   int get _selectedDiscountAmount {
     if (_selectedDiscountId == null) return 0;
@@ -180,7 +196,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       ),
     );
     final discountPercentage = discount.discountAmount.toInt();
-    return ((_tuitionFee * discountPercentage) / 100).round();
+    return ((_selectedSubjectFee * discountPercentage) / 100).round();
   }
 
   int get _netFee {
@@ -231,7 +247,11 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   void _applyDefaultOtherFee(Student? student) {
     final defaultAmount = _defaultOtherFeeForStudent(student);
     _otherFeeAmount = defaultAmount;
-    _otherFeeCtrl.text = defaultAmount > 0 ? defaultAmount.toString() : '';
+    if (_showOtherFeeField && defaultAmount > 0) {
+      _otherFeeCtrl.text = defaultAmount.toString();
+    } else {
+      _otherFeeCtrl.clear();
+    }
   }
 
   int _parseAmount(String raw) {
@@ -351,6 +371,8 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
             studentName: studentFullName,
             selectedFees: selectedFeesList,
             tuitionFee: tuition,
+            mandatoryLabel: _mandatoryFeeLabel,
+            mandatoryFee: _mandatoryFee,
             dormitoryLabel: otherFeeLabel,
             dormitoryFee: otherFeeAmount,
             totalFee: total,
@@ -437,6 +459,8 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                       registrationDate: _fmtDate(DateTime.now()),
                       studentName: _selectedStudent?.fullName,
                       tuitionFee: _tuitionFee,
+                      mandatoryFee: _mandatoryFee,
+                      mandatoryFeeLabel: _mandatoryFeeLabel,
                       totalFee: _totalFee,
                       discount: _selectedDiscountAmount,
                       netFee: _netFee,
@@ -446,6 +470,7 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                           setState(() => _selectedDiscountId = v),
                       otherFee: _otherFeeAmount,
                       otherFeeLabel: _otherFeeLabel,
+                      showOtherFeeField: _showOtherFeeField,
                       otherFeeController: _otherFeeCtrl,
                       onOtherFeeChanged: (value) => setState(() {
                         _otherFeeAmount = _parseAmount(value);

@@ -25,6 +25,9 @@ class RegistrationScreen extends ConsumerStatefulWidget {
 }
 
 class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
+  static const String _mandatorySubjectName = 'ຄະນິດສາດຄິດໄວ';
+  static const int _mandatoryFeeAmount = 300000;
+
   bool showWizard = false;
   bool showDeleteDialog = false;
   bool _isPreparingPrint = false;
@@ -51,6 +54,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     return FormatUtils.formatKip(value.toInt());
   }
 
+  String _normalizeSubjectName(String value) {
+    return value.replaceAll(RegExp(r'\s+'), '').trim();
+  }
+
+  bool _isMandatorySubject(FeeModel fee) {
+    final normalizedSubjectName = _normalizeSubjectName(fee.subjectName);
+    final normalizedMandatoryName = _normalizeSubjectName(
+      _mandatorySubjectName,
+    );
+    return normalizedSubjectName == normalizedMandatoryName ||
+        normalizedSubjectName.contains(normalizedMandatoryName);
+  }
+
   Future<void> _printRegistration(RegistrationModel registration) async {
     if (_isPreparingPrint) {
       return;
@@ -73,9 +89,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           )
           .toList(growable: false);
       final feeById = {for (final fee in fees) fee.feeId: fee};
-      final selectedFees = selectedDetails
+      final allMappedFees = selectedDetails
           .map((detail) => feeById[detail.feeId])
           .whereType<FeeModel>()
+          .toList(growable: false);
+
+      final containsMandatoryInDetails = allMappedFees.any(_isMandatorySubject);
+      final selectedFees = allMappedFees
+          .where((fee) => !_isMandatorySubject(fee))
           .toList(growable: false);
 
       final tuitionFee = selectedFees.fold<int>(
@@ -85,7 +106,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       final totalFee = registration.totalAmount.toInt();
       final discountAmount =
           (registration.totalAmount - registration.finalAmount).toInt();
-      final otherFeeAmount = (totalFee - tuitionFee).clamp(0, totalFee);
+      final mandatoryFee =
+          (containsMandatoryInDetails || selectedFees.isNotEmpty)
+          ? _mandatoryFeeAmount
+          : 0;
+      final otherFeeAmount = (totalFee - tuitionFee - mandatoryFee).clamp(
+        0,
+        totalFee,
+      );
 
       if (!mounted) {
         return;
@@ -98,6 +126,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         studentName: registration.studentFullName,
         selectedFees: selectedFees,
         tuitionFee: tuitionFee,
+        mandatoryLabel: 'ຄ່າວິຊາບັງຄັບ ($_mandatorySubjectName)',
+        mandatoryFee: mandatoryFee,
         dormitoryLabel: otherFeeAmount > 0 ? 'ຄ່າອື່ນໆ' : null,
         dormitoryFee: otherFeeAmount,
         totalFee: totalFee,

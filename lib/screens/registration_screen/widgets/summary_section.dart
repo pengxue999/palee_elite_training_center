@@ -13,8 +13,11 @@ class SummarySection extends StatelessWidget {
   final String registrationDate;
   final String? studentName;
   final int tuitionFee;
+  final int mandatoryFee;
+  final String mandatoryFeeLabel;
   final int otherFee;
   final String otherFeeLabel;
+  final bool showOtherFeeField;
   final int totalFee;
   final int discount;
   final int netFee;
@@ -35,8 +38,11 @@ class SummarySection extends StatelessWidget {
     required this.registrationDate,
     required this.studentName,
     required this.tuitionFee,
+    required this.mandatoryFee,
+    required this.mandatoryFeeLabel,
     required this.otherFee,
     required this.otherFeeLabel,
+    required this.showOtherFeeField,
     required this.totalFee,
     required this.discount,
     required this.netFee,
@@ -119,53 +125,58 @@ class SummarySection extends StatelessWidget {
             enabled: discountEnabled,
           ),
           const SizedBox(height: 12),
-          AppTextField(
-            label: otherFeeLabel,
-            hint: 'ປ້ອນຈຳນວນເງິນ...',
-            controller: otherFeeController,
-            enabled: discountEnabled,
-            thousandsSeparator: true,
-            digitOnly: DigitOnly.integer,
-            onChanged: onOtherFeeChanged,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            suffixIcon: otherFeeController.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      otherFeeController.clear();
-                      onOtherFeeChanged('');
-                    },
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                  )
-                : null,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.12),
+          if (showOtherFeeField) ...[
+            AppTextField(
+              label: otherFeeLabel,
+              hint: 'ປ້ອນຈຳນວນເງິນ...',
+              controller: otherFeeController,
+              enabled: discountEnabled,
+              thousandsSeparator: true,
+              digitOnly: DigitOnly.integer,
+              onChanged: onOtherFeeChanged,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              suffixIcon: otherFeeController.text.isNotEmpty
+                  ? IconButton(
+                      onPressed: () {
+                        otherFeeController.clear();
+                        onOtherFeeChanged('');
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                ),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: AppColors.info,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'ຜູ້ໃຊ້ສາມາດແກ້ໄຂຄ່າອື່ນໆໄດ້ຕາມສະຖານະການຈິງ.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.foreground,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: const Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 18,
-                  color: AppColors.info,
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'ຜູ້ໃຊ້ສາມາດແກ້ໄຂຄ່າອື່ນໆໄດ້ຕາມສະຖານະການຈິງ.',
-                    style: TextStyle(fontSize: 13, color: AppColors.foreground),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
           const Divider(height: 24),
           CustomDataRow(label: 'ສົກຮຽນ', value: academicYear),
           const SizedBox(height: 4),
@@ -178,6 +189,20 @@ class SummarySection extends StatelessWidget {
             value: FormatUtils.formatKip(tuitionFee),
             bold: true,
           ),
+          if (mandatoryFee > 0) ...[
+            const SizedBox(height: 8),
+            CustomDataRow(
+              label: mandatoryFeeLabel,
+              value: FormatUtils.formatKip(mandatoryFee),
+            ),
+          ],
+          if (otherFee > 0) ...[
+            const SizedBox(height: 8),
+            CustomDataRow(
+              label: otherFeeLabel,
+              value: FormatUtils.formatKip(otherFee),
+            ),
+          ],
           if (discount > 0) ...[
             const SizedBox(height: 8),
             Row(
@@ -199,13 +224,6 @@ class SummarySection extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ],
-          if (otherFee > 0) ...[
-            const SizedBox(height: 8),
-            CustomDataRow(
-              label: otherFeeLabel,
-              value: FormatUtils.formatKip(otherFee),
             ),
           ],
         ],

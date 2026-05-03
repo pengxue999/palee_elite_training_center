@@ -8,6 +8,7 @@ import 'package:palee_elite_training_center/screens/registration_screen/widgets/
 class RegistrationDetailCard extends StatelessWidget {
   final int stepNum;
   final List<FeeModel> fees;
+  final Set<String> lockedFeeIds;
   final ValueChanged<String> onRemove;
   final Map<String, String> scholarshipStatusByFee;
   final void Function(String feeId, String status) onScholarshipChanged;
@@ -16,6 +17,7 @@ class RegistrationDetailCard extends StatelessWidget {
     super.key,
     required this.stepNum,
     required this.fees,
+    this.lockedFeeIds = const {},
     required this.onRemove,
     required this.scholarshipStatusByFee,
     required this.onScholarshipChanged,
@@ -114,6 +116,7 @@ class RegistrationDetailCard extends StatelessWidget {
                 ...fees.asMap().entries.map((e) {
                   final i = e.key;
                   final fee = e.value;
+                  final isLocked = lockedFeeIds.contains(fee.feeId);
                   return Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
@@ -196,11 +199,17 @@ class RegistrationDetailCard extends StatelessWidget {
                         SizedBox(
                           width: 50,
                           child: IconButton(
-                            onPressed: () => onRemove(fee.feeId),
-                            icon: const Icon(
-                              Icons.close_rounded,
+                            onPressed: isLocked
+                                ? null
+                                : () => onRemove(fee.feeId),
+                            icon: Icon(
+                              isLocked
+                                  ? Icons.lock_rounded
+                                  : Icons.close_rounded,
                               size: 26,
-                              color: AppColors.destructive,
+                              color: isLocked
+                                  ? AppColors.mutedForeground
+                                  : AppColors.destructive,
                             ),
                           ),
                         ),
