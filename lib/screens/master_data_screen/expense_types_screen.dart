@@ -134,11 +134,6 @@ class _ExpenseTypesScreenState extends ConsumerState<ExpenseTypesScreen> {
 
     final columns = [
       DataColumnDef<ExpenseCategoryModel>(
-        key: 'expenseCategoryId',
-        label: 'ລະຫັດ',
-        flex: 1,
-      ),
-      DataColumnDef<ExpenseCategoryModel>(
         key: 'expenseCategory',
         label: 'ຊື່ປະເພດ',
         flex: 5,

@@ -172,54 +172,23 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Future<void> _doPrint() async {
-    if (_isWebMode) {
-      await _doSavePdf();
-      return;
-    }
-
     setState(() => _printing = true);
+
     try {
-      final selectedPrinter = await _refreshSelectedPrinter();
-
-      if (selectedPrinter == null) {
-        if (mounted) {
-          setState(() => _printing = false);
-          _showErrorSnackBar(
-            'ບໍ່ພົບ printer ທີ່ພ້ອມໃຊ້ງານ. ກະລຸນາເຊື່ອມຕໍ່ printer ແລ້ວລອງໃໝ່.',
-          );
-        }
-        return;
-      }
-
-      final printed = defaultTargetPlatform == TargetPlatform.windows
-          ? await Printing.layoutPdf(
-              onLayout: (_) async => widget.pdfBytes,
-              name: '${widget.fileNamePrefix}_${widget.documentId}',
-              dynamicLayout: false,
-              usePrinterSettings: true,
-            )
-          : await Printing.directPrintPdf(
-              printer: selectedPrinter,
-              onLayout: (_) async => widget.pdfBytes,
-              name: '${widget.fileNamePrefix}_${widget.documentId}',
-            );
+      await Printing.layoutPdf(
+        name: '${widget.fileNamePrefix}_${widget.documentId}',
+        onLayout: (_) async => widget.pdfBytes,
+      );
 
       if (!mounted) return;
 
       setState(() => _printing = false);
-
-      if (!printed) {
-        _showErrorSnackBar('ຍົກເລີກການພິມ ຫຼື printer ບໍ່ພ້ອມໃຊ້ງານ.');
-        return;
-      }
-
       Navigator.of(context, rootNavigator: false).pop();
-      _showSuccessSnackBar('ພິມສຳເລັດ!');
+      _showSuccessSnackBar("ພິມສຳເລັດ!");
     } catch (e) {
-      if (mounted) {
-        setState(() => _printing = false);
-        _showErrorSnackBar('ພິມບໍ່ສຳເລັດ: $e');
-      }
+      if (!mounted) return;
+      setState(() => _printing = false);
+      _showErrorSnackBar("ພິມບໍ່ສຳເລັດ: $e");
     }
   }
 

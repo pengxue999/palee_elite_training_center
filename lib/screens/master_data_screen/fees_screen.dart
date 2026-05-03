@@ -178,7 +178,7 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
       DataColumnDef<FeeModel>(key: 'academicYear', label: 'ສົກຮຽນ', flex: 2),
       DataColumnDef<FeeModel>(
         key: 'fee',
-        label: 'ຄ່າທຳນຽມ',
+        label: 'ຄ່າຮຽນ',
         flex: 2,
         render: (value, item) => Text(FormatUtils.formatKip(item.fee.toInt())),
       ),
@@ -196,7 +196,7 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
             onEdit: _openEdit,
             onDelete: _confirmDelete,
             searchKeys: const ['subjectName', 'levelName', 'academicYear'],
-            addLabel: 'ເພີ່ມຄ່າທຳນຽມ',
+            addLabel: 'ເພີ່ມຄ່າຮຽນ',
             isLoading: isLoading,
           ),
         ),
@@ -235,7 +235,7 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
       color: Colors.black54,
       child: Center(
         child: AppDialog(
-          title: isEditing ? 'ແກ້ໄຂຄ່າທຳນຽມ' : 'ເພີ່ມຄ່າທຳນຽມໃໝ່',
+          title: isEditing ? 'ແກ້ໄຂຄ່າຮຽນ' : 'ເພີ່ມຄ່າຮຽນໃໝ່',
           size: AppDialogSize.large,
           onClose: () => setState(() {
             showAddEditModal = false;
@@ -289,7 +289,7 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
 
                 const SizedBox(height: 16),
                 AppTextField(
-                  label: 'ຄ່າທຳນຽມ',
+                  label: 'ຄ່າຮຽນ',
                   hint: 'ເຊັ່ນ: 500000',
                   controller: _feeController,
                   onChanged: (_) => setState(() {}),
@@ -425,7 +425,7 @@ class _FeesScreenState extends ConsumerState<FeesScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'ເພີ່ມຂໍ້ມູນວິຊາແລະລະດັບກ່ອນຈຶ່ງຈະສາມາດກຳນົດຄ່າທຳນຽມໄດ້',
+                                    'ເພີ່ມຂໍ້ມູນວິຊາແລະລະດັບກ່ອນຈຶ່ງຈະສາມາດກຳນົດຄ່າຮຽນໄດ້',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 13,

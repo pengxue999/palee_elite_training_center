@@ -119,7 +119,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
         ),
         MenuItemModel(
           id: 'fees',
-          label: 'ຂໍ້ມູນຄ່າທຳນຽມ',
+          label: 'ຂໍ້ມູນຄ່າຮຽນ',
           icon: Icons.attach_money_rounded,
           path: '/fees',
           tableName: 'fee',
