@@ -1,6 +1,8 @@
 class AppConstants {
-  static const String baseUrl =
+  static const String localBaseUrl = "http://127.0.0.1:8000";
+  static const String productionBaseUrl =
       "https://paleeapiservice-production.up.railway.app";
+  static const String baseUrl = productionBaseUrl;
   static const String iconPath = "assets/icons";
   static const String imagePath = "assets/images";
 }
