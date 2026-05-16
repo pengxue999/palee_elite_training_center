@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -67,7 +69,10 @@ class _PrintDialogState extends State<_PrintDialog>
 
   bool get _isWebMode => kIsWeb;
 
-  bool get _showPrinterList => !_isWebMode;
+  bool get _useExternalWindowsPrintFlow =>
+      !_isWebMode && defaultTargetPlatform == TargetPlatform.windows;
+
+  bool get _showPrinterList => !_isWebMode && !_useExternalWindowsPrintFlow;
 
   bool _isVirtualPdfPrinter(Printer printer) {
     final normalized = printer.name.toLowerCase();
@@ -143,35 +148,36 @@ class _PrintDialogState extends State<_PrintDialog>
     }
   }
 
-  Future<Printer?> _refreshSelectedPrinter() async {
-    final list = await Printing.listPrinters();
-    final availablePrinters = _filterAvailablePrinters(list);
-    final activePrinter = _selectedPrinter;
-
-    Printer? matchedPrinter;
-    if (activePrinter != null) {
-      for (final printer in availablePrinters) {
-        if (printer.url == activePrinter.url ||
-            printer.name == activePrinter.name) {
-          matchedPrinter = printer;
-          break;
-        }
-      }
-    }
-
-    matchedPrinter ??= _pickDefaultPrinter(availablePrinters);
-
-    if (mounted) {
-      setState(() {
-        _printers = availablePrinters;
-        _selectedPrinter = matchedPrinter;
-      });
-    }
-
-    return matchedPrinter;
-  }
-
   Future<void> _doPrint() async {
+    if (_useExternalWindowsPrintFlow) {
+      setState(() => _printing = true);
+
+      try {
+        final tempDir = await getTemporaryDirectory();
+        final fileName = '${widget.fileNamePrefix}_${widget.documentId}.pdf';
+        final tempFile = File(
+          '${tempDir.path}${Platform.pathSeparator}$fileName',
+        );
+
+        await tempFile.writeAsBytes(widget.pdfBytes, flush: true);
+        await Process.run('explorer', [tempFile.path.replaceAll('/', '\\')]);
+
+        if (!mounted) return;
+
+        setState(() => _printing = false);
+        Navigator.of(context, rootNavigator: false).pop();
+        _showSuccessSnackBar(
+          'ເປີດ PDF ໃນໂປຣແກຣມຂອງ Windows ແລ້ວ. ກະລຸນາກົດ Print ຈາກໜ້າຕ່າງນັ້ນ.',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _printing = false);
+        _showErrorSnackBar('ເປີດ PDF ບໍ່ສຳເລັດ: $e');
+      }
+
+      return;
+    }
+
     setState(() => _printing = true);
 
     try {
@@ -332,8 +338,14 @@ class _PrintDialogState extends State<_PrintDialog>
                   _HeaderPill(
                     icon: _isWebMode
                         ? Icons.picture_as_pdf_rounded
+                        : _useExternalWindowsPrintFlow
+                        ? Icons.open_in_new_rounded
                         : Icons.print_outlined,
-                    label: _isWebMode ? 'PDF export' : 'Connected printer',
+                    label: _isWebMode
+                        ? 'PDF export'
+                        : _useExternalWindowsPrintFlow
+                        ? 'Open in PDF app'
+                        : 'Connected printer',
                   ),
                   const SizedBox(width: 8),
                   _HeaderPill(
@@ -481,6 +493,32 @@ class _PrintDialogState extends State<_PrintDialog>
       );
     }
 
+    if (_useExternalWindowsPrintFlow) {
+      return Container(
+        width: 290,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FBFF),
+          border: Border(
+            right: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoCard(
+              icon: Icons.open_in_new_rounded,
+              title: 'Open in PDF app',
+              description:
+                  'ເມື່ອກົດພິມ ລະບົບຈະເປີດ PDF ໃນໂປຣແກຣມມາດຕະຖານຂອງ Windows ເພື່ອໃຫ້ພິມຈາກທີ່ນັ້ນ.',
+              caption:
+                  'ແນວນີ້ຫຼີກລ້ຽງການປິດໂປຣແກຣມຈາກ plugin ພິມໃນ Windows desktop.',
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       width: 290,
       decoration: BoxDecoration(
@@ -533,7 +571,11 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Widget _buildFooter() {
-    final canPrint = !_printing && (_isWebMode || _selectedPrinter != null);
+    final canPrint =
+        !_printing &&
+        (_isWebMode ||
+            _useExternalWindowsPrintFlow ||
+            _selectedPrinter != null);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
@@ -565,8 +607,14 @@ class _PrintDialogState extends State<_PrintDialog>
                 const SizedBox(width: 12),
                 AppButton(
                   onPressed: canPrint ? _doPrint : null,
-                  label: _printing ? 'ກຳລັງພິມ...' : 'ພິມ',
-                  icon: Icons.print_rounded,
+                  label: _printing
+                      ? 'ກຳລັງດຳເນີນການ...'
+                      : _useExternalWindowsPrintFlow
+                      ? 'ເປີດ PDF'
+                      : 'ພິມ',
+                  icon: _useExternalWindowsPrintFlow
+                      ? Icons.open_in_new_rounded
+                      : Icons.print_rounded,
                   variant: AppButtonVariant.primary,
                   isLoading: _printing,
                 ),
