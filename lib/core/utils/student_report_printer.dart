@@ -35,7 +35,7 @@ Future<void> showStudentReportPrintDialog({
       context: context,
       pdfBytes: pdfBytes,
       documentId: DateFormat('yyyyMMdd_HHmmss').format(DateTime.now()),
-      title: 'ພິມລາຍງານນັກຮຽນ',
+      title: 'ພິມລາຍງານຂໍ້ມູນນັກຮຽນ',
       fileNamePrefix: 'student_report',
     );
   } catch (e) {

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -287,7 +289,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
       children: [
         MenuItemModel(
           id: 'report-students',
-          label: 'ລາຍງານນັກຮຽນ',
+          label: 'ລາຍງານຂໍ້ມູນນັກຮຽນ',
           icon: Icons.school_rounded,
           path: '/reports/students',
           tableName: 'student',
@@ -567,8 +569,16 @@ class _SidebarState extends ConsumerState<Sidebar> {
                   ),
                   FilledButton(
                     onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      await windowManager.close();
+                      if (kIsWeb) {
+                        Navigator.of(ctx).pop();
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) {
+                          GoRouter.of(context).go('/login');
+                        }
+                      } else {
+                        Navigator.of(ctx).pop();
+                        await windowManager.close();
+                      }
                     },
                     child: const Text('ຕົກລົງ'),
                   ),

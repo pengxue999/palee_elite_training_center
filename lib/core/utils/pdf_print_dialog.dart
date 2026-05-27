@@ -374,10 +374,11 @@ class _PrintDialogState extends State<_PrintDialog>
   }
 
   Widget _buildBody() {
+    final showSidePanel = _isWebMode || (!_useExternalWindowsPrintFlow);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildPreviewSidePanel(),
+        if (showSidePanel) _buildPreviewSidePanel(),
         Expanded(
           child: Container(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
@@ -603,22 +604,20 @@ class _PrintDialogState extends State<_PrintDialog>
                 icon: Icons.download_rounded,
                 variant: AppButtonVariant.success,
               ),
-              if (!_isWebMode) ...[
-                const SizedBox(width: 12),
-                AppButton(
-                  onPressed: canPrint ? _doPrint : null,
-                  label: _printing
-                      ? 'ກຳລັງດຳເນີນການ...'
-                      : _useExternalWindowsPrintFlow
-                      ? 'ເປີດ PDF'
-                      : 'ພິມ',
-                  icon: _useExternalWindowsPrintFlow
-                      ? Icons.open_in_new_rounded
-                      : Icons.print_rounded,
-                  variant: AppButtonVariant.primary,
-                  isLoading: _printing,
-                ),
-              ],
+              const SizedBox(width: 12),
+              AppButton(
+                onPressed: canPrint ? _doPrint : null,
+                label: _printing
+                    ? 'ກຳລັງດຳເນີນການ...'
+                    : _useExternalWindowsPrintFlow
+                    ? 'ເປີດ PDF'
+                    : 'ພິມ',
+                icon: _useExternalWindowsPrintFlow
+                    ? Icons.open_in_new_rounded
+                    : Icons.print_rounded,
+                variant: AppButtonVariant.primary,
+                isLoading: _printing,
+              ),
             ],
           ),
         ],

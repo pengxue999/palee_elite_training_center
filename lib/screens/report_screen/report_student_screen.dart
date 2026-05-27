@@ -83,7 +83,7 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
   Future<void> _handleExport() async {
     await ReportExportActionHelper.exportReport(
       context: context,
-      reportTitle: 'ລາຍງານນັກຮຽນ',
+      reportTitle: 'ລາຍງານຂໍ້ມູນນັກຮຽນ',
       requestExport: (format) {
         return ref
             .read(reportProvider.notifier)
@@ -419,7 +419,7 @@ class _ReportStudentScreenState extends ConsumerState<ReportStudentScreen> {
             icon: Icons.print_rounded,
             title: 'ກຳລັງໂຫຼດ...',
             message:
-                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານນັກຮຽນ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
+                'ລະບົບກຳລັງສ້າງ PDF ລາຍງານຂໍ້ມູນນັກຮຽນ ແລະ ເປີດໜ້າຈໍ preview ສຳລັບການພິມ',
             hintText: 'ຈະເປີດ preview ອັດຕະໂນມັດ',
           ),
       ],

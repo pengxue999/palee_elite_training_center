@@ -196,6 +196,20 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       ),
     );
     final discountPercentage = discount.discountAmount.toInt();
+
+    // ຮຽນ3ວິຊາຂື້ນໄປ ແມ່ນຫຼຸດສະເພາະວິຊາສາຍຄິດໄລ່ເທົ່ານັ້ນ
+    if (discount.discountDescription.contains('ຮຽນ3ວິຊາຂື້ນໄປ')) {
+      final calculationSubjectFee = _fees
+          .where(
+            (f) =>
+                _selectedFeeIds.contains(f.feeId) &&
+                f.subjectCategory == 'ສາຍຄິດໄລ່',
+          )
+          .fold(0.0, (sum, f) => sum + f.fee)
+          .toInt();
+      return ((calculationSubjectFee * discountPercentage) / 100).round();
+    }
+
     return ((_selectedSubjectFee * discountPercentage) / 100).round();
   }
 
@@ -273,13 +287,13 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
         _selectedFeeIds.remove(feeId);
         _scholarshipStatusByFee.remove(feeId);
       } else {
-        if (_selectedFeeIds.length >= 3) {
-          AppToast.warning(
-            context,
-            'ນັກຮຽນສາມາດລົງທະບຽນໄດ້ສູງສຸດ 3 ວິຊາເທົ່ານັ້ນ',
-          );
-          return;
-        }
+        // if (_selectedFeeIds.length >= 3) {
+        //   AppToast.warning(
+        //     context,
+        //     'ນັກຮຽນສາມາດລົງທະບຽນໄດ້ສູງສຸດ 3 ວິຊາເທົ່ານັ້ນ',
+        //   );
+        //   return;
+        // }
         _selectedFeeIds.add(feeId);
         _scholarshipStatusByFee[feeId] = 'ບໍ່ໄດ້ຮັບທຶນ';
       }
