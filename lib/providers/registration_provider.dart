@@ -3,8 +3,9 @@ import '../core/utils/http_helper.dart';
 import '../models/registration_model.dart';
 import '../services/registration_service.dart';
 
-final registrationServiceProvider =
-    Provider<RegistrationService>((_) => RegistrationService());
+final registrationServiceProvider = Provider<RegistrationService>(
+  (_) => RegistrationService(),
+);
 
 class RegistrationState {
   final List<RegistrationModel> registrations;
@@ -43,10 +44,7 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final response = await _service.getRegistrations();
-      state = state.copyWith(
-        registrations: response.data,
-        isLoading: false,
-      );
+      state = state.copyWith(registrations: response.data, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
@@ -77,8 +75,13 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
       );
       return true;
     } on ValidationException catch (e) {
-      final errorDetails = e.errors?.map((err) => err['msg'] as String? ?? '').join('\n');
-      state = state.copyWith(error: errorDetails ?? e.message, isCreating: false);
+      final errorDetails = e.errors
+          ?.map((err) => err['msg'] as String? ?? '')
+          .join('\n');
+      state = state.copyWith(
+        error: errorDetails ?? e.message,
+        isCreating: false,
+      );
       return false;
     } catch (e) {
       state = state.copyWith(error: e.toString(), isCreating: false);
@@ -100,8 +103,13 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
       );
       return true;
     } on ValidationException catch (e) {
-      final errorDetails = e.errors?.map((err) => err['msg'] as String? ?? '').join('\n');
-      state = state.copyWith(error: errorDetails ?? e.message, isCreating: false);
+      final errorDetails = e.errors
+          ?.map((err) => err['msg'] as String? ?? '')
+          .join('\n');
+      state = state.copyWith(
+        error: errorDetails ?? e.message,
+        isCreating: false,
+      );
       return false;
     } catch (e) {
       state = state.copyWith(error: e.toString(), isCreating: false);
@@ -110,12 +118,44 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
   }
 
   Future<bool> updateRegistration(
-      String registrationId, RegistrationRequest request) async {
+    String registrationId,
+    RegistrationRequest request,
+  ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _service.updateRegistration(registrationId, request);
       await getRegistrations();
       return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), isLoading: false);
+      return false;
+    }
+  }
+
+  Future<bool> updateRegistrationWithDetails(
+    String registrationId,
+    RegistrationWithDetailsUpdateRequest request,
+    List<Map<String, dynamic>> details,
+  ) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _service.updateRegistrationWithDetails(
+        registrationId,
+        request,
+        details,
+      );
+      await getRegistrations();
+      return true;
+    } on ValidationException catch (e) {
+      final errorDetails = e.errors
+          ?.map((err) => err['msg'] as String? ?? '')
+          .where((msg) => msg.isNotEmpty)
+          .join('\n');
+      state = state.copyWith(
+        error: errorDetails?.isNotEmpty == true ? errorDetails : e.message,
+        isLoading: false,
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
       return false;
@@ -144,7 +184,5 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
 
 final registrationProvider =
     StateNotifierProvider<RegistrationNotifier, RegistrationState>(
-  (ref) => RegistrationNotifier(
-    ref.read(registrationServiceProvider),
-  ),
-);
+      (ref) => RegistrationNotifier(ref.read(registrationServiceProvider)),
+    );

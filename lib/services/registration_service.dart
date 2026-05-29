@@ -45,6 +45,30 @@ class RegistrationService {
     return RegistrationSingleResponse.fromJson(_http.handleJson(response));
   }
 
+  Future<RegistrationSingleResponse> updateRegistrationPartial(
+    String registrationId,
+    RegistrationWithDetailsUpdateRequest request,
+  ) async {
+    final response = await _http.put(
+      '/registrations/$registrationId',
+      body: request.toJson(),
+    );
+    return RegistrationSingleResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<RegistrationSingleResponse> updateRegistrationWithDetails(
+    String registrationId,
+    RegistrationWithDetailsUpdateRequest request,
+    List<Map<String, dynamic>> details,
+  ) async {
+    final body = {...request.toJson(), 'details': details};
+    final response = await _http.put(
+      '/registrations/$registrationId/with-details',
+      body: body,
+    );
+    return RegistrationSingleResponse.fromJson(_http.handleJson(response));
+  }
+
   Future<void> deleteRegistration(String registrationId) async {
     final response = await _http.delete('/registrations/$registrationId');
     _http.handleJson(response);

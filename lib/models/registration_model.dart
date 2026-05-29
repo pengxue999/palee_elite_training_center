@@ -3,6 +3,7 @@ class RegistrationModel {
   final String? studentId;
   final String studentName;
   final String studentLastname;
+  final String? discountId;
   final String? discountDescription;
   final double totalAmount;
   final double finalAmount;
@@ -15,6 +16,7 @@ class RegistrationModel {
     this.studentId,
     required this.studentName,
     required this.studentLastname,
+    this.discountId,
     this.discountDescription,
     required this.totalAmount,
     required this.finalAmount,
@@ -36,6 +38,7 @@ class RegistrationModel {
       studentId: json['student_id'] as String?,
       studentName: json['student_name'] as String? ?? '',
       studentLastname: json['student_lastname'] as String? ?? '',
+      discountId: json['discount_id'] as String?,
       discountDescription: json['discount_description'] as String?,
       totalAmount: parseAmount(json['total_amount']),
       finalAmount: parseAmount(json['final_amount']),
@@ -64,6 +67,8 @@ class RegistrationModel {
         return studentLastname;
       case 'discountDescription':
         return discountDescription ?? '-';
+      case 'discountId':
+        return discountId ?? '';
       case 'totalAmount':
         return totalAmount;
       case 'finalAmount':
@@ -104,6 +109,33 @@ class RegistrationRequest {
   Map<String, dynamic> toJson() => {
     if (registrationId != null) 'registration_id': registrationId,
     'student_id': studentId,
+    'discount_id': discountId,
+    'total_amount': totalAmount,
+    'final_amount': finalAmount,
+    'status': status,
+    'registration_date': registrationDate.toIso8601String(),
+  };
+}
+
+class RegistrationWithDetailsUpdateRequest {
+  final String? studentId;
+  final String? discountId;
+  final double totalAmount;
+  final double finalAmount;
+  final String status;
+  final DateTime registrationDate;
+
+  RegistrationWithDetailsUpdateRequest({
+    this.studentId,
+    this.discountId,
+    required this.totalAmount,
+    required this.finalAmount,
+    required this.status,
+    required this.registrationDate,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (studentId != null && studentId!.isNotEmpty) 'student_id': studentId,
     'discount_id': discountId,
     'total_amount': totalAmount,
     'final_amount': finalAmount,

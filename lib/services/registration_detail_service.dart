@@ -30,4 +30,20 @@ class RegistrationDetailService {
       json['data'] as Map<String, dynamic>,
     );
   }
+
+  Future<RegistrationDetailResponse> updateRegistrationDetail(
+    int id,
+    RegistrationDetailCreateRequest request,
+  ) async {
+    final response = await _http.put(
+      '/registration-details/$id',
+      body: request.toJson(),
+    );
+    return RegistrationDetailResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<void> deleteRegistrationDetail(int id) async {
+    final response = await _http.delete('/registration-details/$id');
+    _http.handleJson(response);
+  }
 }
