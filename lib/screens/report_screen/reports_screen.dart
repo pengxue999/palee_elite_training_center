@@ -6,6 +6,7 @@ import 'package:palee_elite_training_center/screens/report_screen/report_teacher
 import 'package:palee_elite_training_center/screens/report_screen/report_donation.dart';
 import 'package:palee_elite_training_center/screens/report_screen/report_popular_subject.dart';
 import 'package:palee_elite_training_center/screens/report_screen/report_assessment_screen.dart';
+import 'package:palee_elite_training_center/screens/report_screen/report_registration_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   final String? reportType;
@@ -73,6 +74,8 @@ class _ReportsPageState extends State<ReportsScreen> with RouteAware {
         return const ReportDonationScreen();
       case 'popular-subjects':
         return const ReportPopularSubjectScreen();
+      case 'registration':
+        return const ReportRegistrationScreen();
       default:
         return const ReportStudentScreen();
     }

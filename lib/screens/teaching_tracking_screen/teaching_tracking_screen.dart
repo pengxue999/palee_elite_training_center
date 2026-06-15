@@ -498,7 +498,7 @@ class _TeachingTrackingScreenState
                   (a) => DropdownMenuItem(
                     value: a.assignmentId,
                     child: Text(
-                      '${a.subjectName} (${a.levelName}) - ${_formatNum(a.hourlyRate)} ກີບ/ຊມ',
+                      '${a.subjectName} (${a.levelName})',
                     ),
                   ),
                 )
@@ -639,7 +639,7 @@ class _TeachingTrackingScreenState
                     (a) => DropdownMenuItem(
                       value: a.assignmentId,
                       child: Text(
-                        '${a.subjectName} (${a.levelName}) - ${_formatNum(a.hourlyRate)} ກີບ/ຊມ',
+                        '${a.subjectName} (${a.levelName})',
                       ),
                     ),
                   )
@@ -873,31 +873,31 @@ class _TeachingTrackingScreenState
           style: const TextStyle(fontSize: 14),
         ),
       ),
-      DataColumnDef(
-        key: 'hourly',
-        label: 'ຊ.ມ',
-        render: (v, _) => Text(
-          (double.tryParse(v?.toString() ?? '0') ?? 0).toStringAsFixed(0),
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-      ),
-      DataColumnDef(
-        key: 'hourlyRate',
-        label: 'ຄ່າສອນ/ຊມ',
-        render: (v, _) => Text(
-          '${_formatNum(double.tryParse(v?.toString() ?? '0') ?? 0)} ກີບ',
-          style: const TextStyle(fontSize: 14),
-        ),
-      ),
+      // DataColumnDef(
+      //   key: 'hourly',
+      //   label: 'ຊ.ມ',
+      //   render: (v, _) => Text(
+      //     (double.tryParse(v?.toString() ?? '0') ?? 0).toStringAsFixed(0),
+      //     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      //   ),
+      // ),
+      // DataColumnDef(
+      //   key: 'hourlyRate',
+      //   label: 'ຄ່າສອນ/ຊມ',
+      //   render: (v, _) => Text(
+      //     '${_formatNum(double.tryParse(v?.toString() ?? '0') ?? 0)} ກີບ',
+      //     style: const TextStyle(fontSize: 14),
+      //   ),
+      // ),
 
-      DataColumnDef(
-        key: 'totalAmount',
-        label: 'ຈຳນວນເງິນ',
-        render: (v, _) => Text(
-          '${_formatNum(double.tryParse(v?.toString() ?? '0') ?? 0)} ກີບ',
-          style: const TextStyle(fontSize: 14),
-        ),
-      ),
+      // DataColumnDef(
+      //   key: 'totalAmount',
+      //   label: 'ຈຳນວນເງິນ',
+      //   render: (v, _) => Text(
+      //     '${_formatNum(double.tryParse(v?.toString() ?? '0') ?? 0)} ກີບ',
+      //     style: const TextStyle(fontSize: 14),
+      //   ),
+      // ),
       DataColumnDef(
         key: 'status',
         label: 'ສະຖານະ',
@@ -1085,7 +1085,7 @@ class _TeachingTrackingScreenState
                     (a) => DropdownMenuItem(
                       value: a.assignmentId,
                       child: Text(
-                        '${a.subjectName} (${a.levelName}) - ${_formatNum(a.hourlyRate)} ກີບ/ຊມ',
+                        '${a.subjectName} (${a.levelName})',
                       ),
                     ),
                   )

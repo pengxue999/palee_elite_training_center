@@ -30,6 +30,11 @@ class ReportState {
   final bool isPopularSubjectsLoading;
   final String? popularSubjectsError;
 
+  final RegistrationReportData? registrationReportData;
+  final bool isRegistrationReportLoading;
+  final bool isRegistrationReportExporting;
+  final String? registrationReportError;
+
   const ReportState({
     this.students = const [],
     this.filters,
@@ -52,6 +57,10 @@ class ReportState {
     this.popularSubjectsData,
     this.isPopularSubjectsLoading = false,
     this.popularSubjectsError,
+    this.registrationReportData,
+    this.isRegistrationReportLoading = false,
+    this.isRegistrationReportExporting = false,
+    this.registrationReportError,
   });
 
   ReportState copyWith({
@@ -76,6 +85,10 @@ class ReportState {
     PopularSubjectsReportData? popularSubjectsData,
     bool? isPopularSubjectsLoading,
     String? popularSubjectsError,
+    RegistrationReportData? registrationReportData,
+    bool? isRegistrationReportLoading,
+    bool? isRegistrationReportExporting,
+    String? registrationReportError,
   }) {
     return ReportState(
       students: students ?? this.students,
@@ -106,6 +119,13 @@ class ReportState {
       isPopularSubjectsLoading:
           isPopularSubjectsLoading ?? this.isPopularSubjectsLoading,
       popularSubjectsError: popularSubjectsError,
+      registrationReportData:
+          registrationReportData ?? this.registrationReportData,
+      isRegistrationReportLoading:
+          isRegistrationReportLoading ?? this.isRegistrationReportLoading,
+      isRegistrationReportExporting:
+          isRegistrationReportExporting ?? this.isRegistrationReportExporting,
+      registrationReportError: registrationReportError,
     );
   }
 }
@@ -323,6 +343,63 @@ class ReportNotifier extends StateNotifier<ReportState> {
 
   void clearFinanceError() {
     state = state.copyWith(financeError: null);
+  }
+
+  Future<void> getRegistrationReport({
+    String? status,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    state = state.copyWith(
+      isRegistrationReportLoading: true,
+      registrationReportError: null,
+    );
+    try {
+      final response = await _service.getRegistrationReport(
+        status: status,
+        subjectId: subjectId,
+        levelId: levelId,
+      );
+      state = state.copyWith(
+        registrationReportData: response.data,
+        isRegistrationReportLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        registrationReportError: e.toString(),
+        isRegistrationReportLoading: false,
+      );
+    }
+  }
+
+  Future<ExportReportData?> exportRegistrationReport({
+    String? status,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    state = state.copyWith(
+      isRegistrationReportExporting: true,
+      registrationReportError: null,
+    );
+    try {
+      final response = await _service.exportRegistrationReport(
+        status: status,
+        subjectId: subjectId,
+        levelId: levelId,
+      );
+      state = state.copyWith(isRegistrationReportExporting: false);
+      return response.data;
+    } catch (e) {
+      state = state.copyWith(
+        registrationReportError: e.toString(),
+        isRegistrationReportExporting: false,
+      );
+      return null;
+    }
+  }
+
+  void clearRegistrationReportError() {
+    state = state.copyWith(registrationReportError: null);
   }
 }
 

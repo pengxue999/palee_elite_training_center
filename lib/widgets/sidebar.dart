@@ -329,6 +329,13 @@ class _SidebarState extends ConsumerState<Sidebar> {
           path: '/reports?type=popular-subjects',
           tableName: 'subject_detail',
         ),
+        MenuItemModel(
+          id: 'report-registration',
+          label: 'ລາຍງານການລົງທະບຽນ',
+          icon: Icons.how_to_reg_rounded,
+          path: '/reports?type=registration',
+          tableName: 'registration',
+        ),
       ],
     ),
   ];

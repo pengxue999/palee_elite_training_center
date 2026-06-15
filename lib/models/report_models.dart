@@ -884,3 +884,150 @@ class PopularSubjectsReportResponse {
     );
   }
 }
+
+class RegistrationReportItem {
+  final String registrationId;
+  final String? studentId;
+  final String? fullName;
+  final String? gender;
+  final String? school;
+  final String? districtName;
+  final String? provinceName;
+  final String? academicYearName;
+  final String? status;
+  final String? registrationDate;
+
+  const RegistrationReportItem({
+    required this.registrationId,
+    this.studentId,
+    this.fullName,
+    this.gender,
+    this.school,
+    this.districtName,
+    this.provinceName,
+    this.academicYearName,
+    this.status,
+    this.registrationDate,
+  });
+
+  factory RegistrationReportItem.fromJson(Map<String, dynamic> json) {
+    return RegistrationReportItem(
+      registrationId: json['registration_id'] as String,
+      studentId: json['student_id'] as String?,
+      fullName: json['full_name'] as String?,
+      gender: json['gender'] as String?,
+      school: json['school'] as String?,
+      districtName: json['district_name'] as String?,
+      provinceName: json['province_name'] as String?,
+      academicYearName: json['academic_year_name'] as String?,
+      status: json['status'] as String?,
+      registrationDate: json['registration_date'] as String?,
+    );
+  }
+
+  dynamic operator [](String key) {
+    switch (key) {
+      case 'registrationId':
+        return registrationId;
+      case 'studentId':
+        return studentId ?? '-';
+      case 'fullName':
+        return fullName ?? '-';
+      case 'gender':
+        return gender ?? '-';
+      case 'school':
+        return school ?? '-';
+      case 'districtName':
+        return districtName ?? '-';
+      case 'provinceName':
+        return provinceName ?? '-';
+      case 'academicYearName':
+        return academicYearName ?? '-';
+      case 'status':
+        return status ?? '-';
+      case 'registrationDate':
+        return registrationDate ?? '-';
+      default:
+        return null;
+    }
+  }
+}
+
+class RegistrationReportFilters {
+  final String? status;
+  final String? subjectId;
+  final String? subjectName;
+  final String? levelId;
+  final String? levelName;
+
+  const RegistrationReportFilters({
+    this.status,
+    this.subjectId,
+    this.subjectName,
+    this.levelId,
+    this.levelName,
+  });
+
+  factory RegistrationReportFilters.fromJson(Map<String, dynamic> json) {
+    return RegistrationReportFilters(
+      status: json['status'] as String?,
+      subjectId: json['subject_id'] as String?,
+      subjectName: json['subject_name'] as String?,
+      levelId: json['level_id'] as String?,
+      levelName: json['level_name'] as String?,
+    );
+  }
+}
+
+class RegistrationReportData {
+  final RegistrationReportFilters filters;
+  final int totalCount;
+  final int paidCount;
+  final int unpaidCount;
+  final int partialCount;
+  final List<RegistrationReportItem> registrations;
+
+  const RegistrationReportData({
+    required this.filters,
+    required this.totalCount,
+    required this.paidCount,
+    required this.unpaidCount,
+    required this.partialCount,
+    required this.registrations,
+  });
+
+  factory RegistrationReportData.fromJson(Map<String, dynamic> json) {
+    return RegistrationReportData(
+      filters: RegistrationReportFilters.fromJson(
+        json['filters'] as Map<String, dynamic>,
+      ),
+      totalCount: json['total_count'] as int,
+      paidCount: json['paid_count'] as int,
+      unpaidCount: json['unpaid_count'] as int,
+      partialCount: json['partial_count'] as int,
+      registrations: (json['registrations'] as List)
+          .map((e) => RegistrationReportItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class RegistrationReportResponse {
+  final String code;
+  final String messages;
+  final RegistrationReportData data;
+
+  const RegistrationReportResponse({
+    required this.code,
+    required this.messages,
+    required this.data,
+  });
+
+  factory RegistrationReportResponse.fromJson(Map<String, dynamic> json) {
+    return RegistrationReportResponse(
+      code: json['code'] as String,
+      messages: json['messages'] as String,
+      data: RegistrationReportData.fromJson(json['data'] as Map<String, dynamic>),
+    );
+  }
+}

@@ -389,6 +389,10 @@ class _AllPaymentHistorySection extends ConsumerWidget {
                   key: 'payDate',
                   label: 'ວັນທີຈ່າຍ',
                   flex: 3,
+                  render: (value, row) {
+                    final str = value?.toString() ?? '';
+                    return Text(str.length >= 10 ? str.substring(0, 10) : str);
+                  },
                 ),
               ],
               onDelete: (row) => _showDeleteConfirmation(context, ref, row),

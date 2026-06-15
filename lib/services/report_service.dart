@@ -416,6 +416,74 @@ class ReportService {
     return response.bodyBytes;
   }
 
+  Future<RegistrationReportResponse> getRegistrationReport({
+    String? status,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    final queryParams = <String, String>{};
+    if (status != null) queryParams['status'] = status;
+    if (subjectId != null) queryParams['subject_id'] = subjectId;
+    if (levelId != null) queryParams['level_id'] = levelId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/registrations${queryString.isEmpty ? '' : '?$queryString'}',
+    );
+    return RegistrationReportResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<Uint8List> createRegistrationReportPdf({
+    String? status,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    final queryParams = <String, String>{};
+    if (status != null) queryParams['status'] = status;
+    if (subjectId != null) queryParams['subject_id'] = subjectId;
+    if (levelId != null) queryParams['level_id'] = levelId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/registrations/report-pdf${queryString.isEmpty ? '' : '?$queryString'}',
+      headers: {'Accept': 'application/pdf'},
+      timeout: const Duration(seconds: 90),
+    );
+
+    if (response.statusCode != 200) {
+      _http.handleJson(response);
+      throw Exception('ບໍ່ສາມາດສ້າງ PDF ໄດ້');
+    }
+
+    return response.bodyBytes;
+  }
+
+  Future<ExportReportResponse> exportRegistrationReport({
+    String? status,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    final queryParams = <String, String>{};
+    if (status != null) queryParams['status'] = status;
+    if (subjectId != null) queryParams['subject_id'] = subjectId;
+    if (levelId != null) queryParams['level_id'] = levelId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/registrations/export${queryString.isEmpty ? '' : '?$queryString'}',
+    );
+    return ExportReportResponse.fromJson(_http.handleJson(response));
+  }
+
   Future<ExportReportResponse> exportDonationReport({
     String? donorId,
     String? donationCategory,
