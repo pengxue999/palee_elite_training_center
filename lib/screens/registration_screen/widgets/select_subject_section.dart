@@ -9,6 +9,7 @@ import 'package:palee_elite_training_center/widgets/section_card.dart';
 class SelectSubjectSection extends StatefulWidget {
   final List<FeeModel> allFees;
   final Set<String> selectedFeeIds;
+  final Set<String> scholarshipFeeIds;
   final bool isLoading;
   final bool enabled;
   final ValueChanged<String> onToggleFee;
@@ -17,6 +18,7 @@ class SelectSubjectSection extends StatefulWidget {
     super.key,
     required this.allFees,
     required this.selectedFeeIds,
+    this.scholarshipFeeIds = const {},
     required this.isLoading,
     required this.enabled,
     required this.onToggleFee,
@@ -268,6 +270,9 @@ class SelectSubjectSectionState extends State<SelectSubjectSection> {
                         return FeeCard(
                           fee: fee,
                           isSelected: sel,
+                          isScholarship: widget.scholarshipFeeIds.contains(
+                            fee.feeId,
+                          ),
                           onTap: widget.enabled
                               ? () => _selectFeeExclusive(
                                   fee.feeId,

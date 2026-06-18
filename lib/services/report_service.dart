@@ -484,6 +484,47 @@ class ReportService {
     return ExportReportResponse.fromJson(_http.handleJson(response));
   }
 
+  Future<ScholarshipReportResponse> getScholarshipReport({
+    String? scholarship,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    final queryParams = <String, String>{};
+    if (scholarship != null) queryParams['scholarship'] = scholarship;
+    if (subjectId != null) queryParams['subject_id'] = subjectId;
+    if (levelId != null) queryParams['level_id'] = levelId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/scholarship-students${queryString.isEmpty ? '' : '?$queryString'}',
+    );
+    return ScholarshipReportResponse.fromJson(_http.handleJson(response));
+  }
+
+  Future<ExportReportResponse> exportScholarshipReport({
+    String? scholarship,
+    String? subjectId,
+    String? levelId,
+    String format = 'excel',
+  }) async {
+    final queryParams = <String, String>{'format': format};
+    if (scholarship != null) queryParams['scholarship'] = scholarship;
+    if (subjectId != null) queryParams['subject_id'] = subjectId;
+    if (levelId != null) queryParams['level_id'] = levelId;
+
+    final queryString = queryParams.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+
+    final response = await _http.get(
+      '/reports/scholarship-students/export?$queryString',
+    );
+    return ExportReportResponse.fromJson(_http.handleJson(response));
+  }
+
   Future<ExportReportResponse> exportDonationReport({
     String? donorId,
     String? donationCategory,

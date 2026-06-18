@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -335,6 +334,13 @@ class _SidebarState extends ConsumerState<Sidebar> {
           icon: Icons.how_to_reg_rounded,
           path: '/reports?type=registration',
           tableName: 'registration',
+        ),
+        MenuItemModel(
+          id: 'report-scholarship',
+          label: 'ລາຍງານນັກຮຽນທຶນ',
+          icon: Icons.workspace_premium_rounded,
+          path: '/reports?type=scholarship',
+          tableName: 'registration_detail',
         ),
       ],
     ),

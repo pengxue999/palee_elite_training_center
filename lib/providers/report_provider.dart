@@ -35,6 +35,11 @@ class ReportState {
   final bool isRegistrationReportExporting;
   final String? registrationReportError;
 
+  final ScholarshipReportData? scholarshipReportData;
+  final bool isScholarshipReportLoading;
+  final bool isScholarshipReportExporting;
+  final String? scholarshipReportError;
+
   const ReportState({
     this.students = const [],
     this.filters,
@@ -61,6 +66,10 @@ class ReportState {
     this.isRegistrationReportLoading = false,
     this.isRegistrationReportExporting = false,
     this.registrationReportError,
+    this.scholarshipReportData,
+    this.isScholarshipReportLoading = false,
+    this.isScholarshipReportExporting = false,
+    this.scholarshipReportError,
   });
 
   ReportState copyWith({
@@ -89,6 +98,10 @@ class ReportState {
     bool? isRegistrationReportLoading,
     bool? isRegistrationReportExporting,
     String? registrationReportError,
+    ScholarshipReportData? scholarshipReportData,
+    bool? isScholarshipReportLoading,
+    bool? isScholarshipReportExporting,
+    String? scholarshipReportError,
   }) {
     return ReportState(
       students: students ?? this.students,
@@ -126,6 +139,13 @@ class ReportState {
       isRegistrationReportExporting:
           isRegistrationReportExporting ?? this.isRegistrationReportExporting,
       registrationReportError: registrationReportError,
+      scholarshipReportData:
+          scholarshipReportData ?? this.scholarshipReportData,
+      isScholarshipReportLoading:
+          isScholarshipReportLoading ?? this.isScholarshipReportLoading,
+      isScholarshipReportExporting:
+          isScholarshipReportExporting ?? this.isScholarshipReportExporting,
+      scholarshipReportError: scholarshipReportError,
     );
   }
 }
@@ -400,6 +420,65 @@ class ReportNotifier extends StateNotifier<ReportState> {
 
   void clearRegistrationReportError() {
     state = state.copyWith(registrationReportError: null);
+  }
+
+  Future<void> getScholarshipReport({
+    String? scholarship,
+    String? subjectId,
+    String? levelId,
+  }) async {
+    state = state.copyWith(
+      isScholarshipReportLoading: true,
+      scholarshipReportError: null,
+    );
+    try {
+      final response = await _service.getScholarshipReport(
+        scholarship: scholarship,
+        subjectId: subjectId,
+        levelId: levelId,
+      );
+      state = state.copyWith(
+        scholarshipReportData: response.data,
+        isScholarshipReportLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        scholarshipReportError: e.toString(),
+        isScholarshipReportLoading: false,
+      );
+    }
+  }
+
+  Future<ExportReportData?> exportScholarshipReport({
+    String? scholarship,
+    String? subjectId,
+    String? levelId,
+    String format = 'excel',
+  }) async {
+    state = state.copyWith(
+      isScholarshipReportExporting: true,
+      scholarshipReportError: null,
+    );
+    try {
+      final response = await _service.exportScholarshipReport(
+        scholarship: scholarship,
+        subjectId: subjectId,
+        levelId: levelId,
+        format: format,
+      );
+      state = state.copyWith(isScholarshipReportExporting: false);
+      return response.data;
+    } catch (e) {
+      state = state.copyWith(
+        scholarshipReportError: e.toString(),
+        isScholarshipReportExporting: false,
+      );
+      return null;
+    }
+  }
+
+  void clearScholarshipReportError() {
+    state = state.copyWith(scholarshipReportError: null);
   }
 }
 

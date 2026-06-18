@@ -1031,3 +1031,146 @@ class RegistrationReportResponse {
     );
   }
 }
+
+class ScholarshipReportItem {
+  final String? studentId;
+  final String? fullName;
+  final String? gender;
+  final String? scholarshipSubject;
+  final String? subjectName;
+  final String? levelName;
+  final String? studentContact;
+  final String? school;
+  final String? districtName;
+  final String? provinceName;
+  final String? scholarship;
+
+  const ScholarshipReportItem({
+    this.studentId,
+    this.fullName,
+    this.gender,
+    this.scholarshipSubject,
+    this.subjectName,
+    this.levelName,
+    this.studentContact,
+    this.school,
+    this.districtName,
+    this.provinceName,
+    this.scholarship,
+  });
+
+  factory ScholarshipReportItem.fromJson(Map<String, dynamic> json) {
+    return ScholarshipReportItem(
+      studentId: json['student_id'] as String?,
+      fullName: json['full_name'] as String?,
+      gender: json['gender'] as String?,
+      scholarshipSubject: json['scholarship_subject'] as String?,
+      subjectName: json['subject_name'] as String?,
+      levelName: json['level_name'] as String?,
+      studentContact: json['student_contact'] as String?,
+      school: json['school'] as String?,
+      districtName: json['district_name'] as String?,
+      provinceName: json['province_name'] as String?,
+      scholarship: json['scholarship'] as String?,
+    );
+  }
+
+  dynamic operator [](String key) {
+    switch (key) {
+      case 'studentId':
+        return studentId ?? '-';
+      case 'fullName':
+        return fullName ?? '-';
+      case 'gender':
+        return gender ?? '-';
+      case 'scholarshipSubject':
+        return scholarshipSubject ?? '-';
+      case 'subjectName':
+        return subjectName ?? '-';
+      case 'levelName':
+        return levelName ?? '-';
+      case 'studentContact':
+        return studentContact ?? '-';
+      case 'school':
+        return school ?? '-';
+      case 'districtName':
+        return districtName ?? '-';
+      case 'provinceName':
+        return provinceName ?? '-';
+      case 'scholarship':
+        return scholarship ?? '-';
+      default:
+        return null;
+    }
+  }
+}
+
+class ScholarshipReportFilters {
+  final String? scholarship;
+  final String? subjectId;
+  final String? subjectName;
+  final String? levelId;
+  final String? levelName;
+
+  const ScholarshipReportFilters({
+    this.scholarship,
+    this.subjectId,
+    this.subjectName,
+    this.levelId,
+    this.levelName,
+  });
+
+  factory ScholarshipReportFilters.fromJson(Map<String, dynamic> json) {
+    return ScholarshipReportFilters(
+      scholarship: json['scholarship'] as String?,
+      subjectId: json['subject_id'] as String?,
+      subjectName: json['subject_name'] as String?,
+      levelId: json['level_id'] as String?,
+      levelName: json['level_name'] as String?,
+    );
+  }
+}
+
+class ScholarshipReportData {
+  final ScholarshipReportFilters filters;
+  final int totalCount;
+  final List<ScholarshipReportItem> students;
+
+  const ScholarshipReportData({
+    required this.filters,
+    required this.totalCount,
+    required this.students,
+  });
+
+  factory ScholarshipReportData.fromJson(Map<String, dynamic> json) {
+    return ScholarshipReportData(
+      filters: ScholarshipReportFilters.fromJson(
+        json['filters'] as Map<String, dynamic>,
+      ),
+      totalCount: json['total_count'] as int,
+      students: (json['students'] as List)
+          .map((e) => ScholarshipReportItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class ScholarshipReportResponse {
+  final String code;
+  final String messages;
+  final ScholarshipReportData data;
+
+  const ScholarshipReportResponse({
+    required this.code,
+    required this.messages,
+    required this.data,
+  });
+
+  factory ScholarshipReportResponse.fromJson(Map<String, dynamic> json) {
+    return ScholarshipReportResponse(
+      code: json['code'] as String,
+      messages: json['messages'] as String,
+      data: ScholarshipReportData.fromJson(json['data'] as Map<String, dynamic>),
+    );
+  }
+}

@@ -516,6 +516,18 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
     return sum + fee.fee.toInt();
   });
 
+  Set<String> get _scholarshipFeeIds => _selectedFeeIds
+      .where((feeId) => _scholarshipStatusByFee[feeId] == 'ໄດ້ຮັບທຶນ')
+      .toSet();
+
+  List<FeeModel> get _scholarshipFees => _fees
+      .where((fee) => _scholarshipFeeIds.contains(fee.feeId))
+      .toList(growable: false);
+
+  List<FeeModel> get _selectedFees => _fees
+      .where((fee) => _selectedFeeIds.contains(fee.feeId))
+      .toList(growable: false);
+
   int get _mandatoryFee => _selectedFeeIds.isEmpty ? 0 : _mandatoryFeeAmount;
 
   int get _totalFee => _selectedSubjectFee + _mandatoryFee + _otherFeeAmount;
@@ -534,9 +546,7 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
     );
     final discountPercentage = discount.discountAmount.toInt();
 
-    if (discount.discountDescription.contains(
-      'ຮຽນ3ວິຊາຂື້ນໄປ',
-    )) {
+    if (discount.discountDescription.contains('ຮຽນ3ວິຊາຂື້ນໄປ')) {
       final calculationSubjectFee = _fees
           .where(
             (fee) =>
@@ -735,6 +745,7 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
                 SelectSubjectSection(
                   allFees: _fees,
                   selectedFeeIds: _selectedFeeIds,
+                  scholarshipFeeIds: _scholarshipFeeIds,
                   isLoading: false,
                   enabled: true,
                   onToggleFee: _toggleFee,
@@ -762,10 +773,129 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
                     setState(() => _selectedDiscountId = value);
                   },
                 ),
+                if (_selectedFees.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildSubjectDetails(),
+                ],
                 const SizedBox(height: 16),
                 _buildAmountSummary(),
               ],
             ),
+    );
+  }
+
+  Widget _buildSubjectDetails() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.menu_book_rounded,
+                size: 18,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'ລາຍລະອຽດວິຊາທີ່ລົງທະບຽນ',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.foreground,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'ໄດ້ທຶນ ${_scholarshipFees.length}/${_selectedFees.length} ວິຊາ',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          ..._selectedFees.map((fee) {
+            final isScholarship = _scholarshipFeeIds.contains(fee.feeId);
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: fee.subjectName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.foreground,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '  ${fee.levelName}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _scholarshipBadge(isScholarship),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _scholarshipBadge(bool isScholarship) {
+    final color = isScholarship ? AppColors.success : AppColors.mutedForeground;
+    final bg = isScholarship
+        ? AppColors.successLight
+        : AppColors.muted.withValues(alpha: 0.6);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isScholarship ? Icons.school_rounded : Icons.remove_circle_outline,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isScholarship ? 'ໄດ້ຮັບທຶນ' : 'ບໍ່ໄດ້ຮັບທຶນ',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
