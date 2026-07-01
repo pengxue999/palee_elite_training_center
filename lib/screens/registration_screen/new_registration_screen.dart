@@ -210,6 +210,12 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
       return ((calculationSubjectFee * discountPercentage) / 100).round();
     }
 
+    // ລົງທະບຽນຮຽນຊ້າ ແມ່ນຫຼຸດຈາກຄ່າຮຽນ ແລະ ຄ່າວິຊາບັງຄັບ
+    if (discount.discountDescription.contains('ລົງທະບຽນຮຽນຊ້າ')) {
+      return ((_selectedSubjectFee + _mandatoryFee) * discountPercentage / 100)
+          .round();
+    }
+
     return ((_selectedSubjectFee * discountPercentage) / 100).round();
   }
 
@@ -308,6 +314,16 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
   void _setScholarshipStatus(String feeId, String status) {
     setState(() {
       _scholarshipStatusByFee[feeId] = status;
+    });
+  }
+
+  void _toggleScholarship(String feeId) {
+    setState(() {
+      if (_scholarshipStatusByFee[feeId] == 'ໄດ້ຮັບທຶນ') {
+        _scholarshipStatusByFee[feeId] = 'ບໍ່ໄດ້ຮັບທຶນ';
+      } else {
+        _scholarshipStatusByFee[feeId] = 'ໄດ້ຮັບທຶນ';
+      }
     });
   }
 
@@ -526,6 +542,13 @@ class _NewRegistrationScreenState extends ConsumerState<NewRegistrationScreen> {
                           SelectSubjectSection(
                             allFees: _fees,
                             selectedFeeIds: _selectedFeeIds,
+                            scholarshipFeeIds: _selectedFeeIds
+                                .where(
+                                  (feeId) =>
+                                      _scholarshipStatusByFee[feeId] ==
+                                      'ໄດ້ຮັບທຶນ',
+                                )
+                                .toSet(),
                             isLoading: _isLoadingFees,
                             enabled: _selectedStudent != null,
                             onToggleFee: _toggleFee,

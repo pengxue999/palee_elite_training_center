@@ -558,6 +558,11 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
       return ((calculationSubjectFee * discountPercentage) / 100).round();
     }
 
+    // ລົງທະບຽນຮຽນຊ້າ ແມ່ນຫຼຸດຈາກຄ່າຮຽນ ແລະ ຄ່າວິຊາບັງຄັບ
+    if (discount.discountDescription.contains('ລົງທະບຽນຮຽນຊ້າ')) {
+      return ((_selectedSubjectFee + _mandatoryFee) * discountPercentage / 100).round();
+    }
+
     return ((_selectedSubjectFee * discountPercentage) / 100).round();
   }
 
@@ -649,6 +654,16 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
       } else {
         _selectedFeeIds.add(feeId);
         _scholarshipStatusByFee[feeId] = 'ບໍ່ໄດ້ຮັບທຶນ';
+      }
+    });
+  }
+
+  void _toggleScholarship(String feeId) {
+    setState(() {
+      if (_scholarshipStatusByFee[feeId] == 'ໄດ້ຮັບທຶນ') {
+        _scholarshipStatusByFee[feeId] = 'ບໍ່ໄດ້ຮັບທຶນ';
+      } else {
+        _scholarshipStatusByFee[feeId] = 'ໄດ້ຮັບທຶນ';
       }
     });
   }
@@ -855,45 +870,33 @@ class _ChangeSubjectsDialogState extends State<_ChangeSubjectsDialog> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _scholarshipBadge(isScholarship),
+                  SizedBox(
+                    width: 140,
+                    child: AppDropdown<String>(
+                      value: _scholarshipStatusByFee[fee.feeId] ?? 'ບໍ່ໄດ້ຮັບທຶນ',
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'ໄດ້ຮັບທຶນ',
+                          child: Text('ໄດ້ຮັບທຶນ'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ບໍ່ໄດ້ຮັບທຶນ',
+                          child: Text('ບໍ່ໄດ້ຮັບທຶນ'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _scholarshipStatusByFee[fee.feeId] = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
                 ],
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-
-  Widget _scholarshipBadge(bool isScholarship) {
-    final color = isScholarship ? AppColors.success : AppColors.mutedForeground;
-    final bg = isScholarship
-        ? AppColors.successLight
-        : AppColors.muted.withValues(alpha: 0.6);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isScholarship ? Icons.school_rounded : Icons.remove_circle_outline,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            isScholarship ? 'ໄດ້ຮັບທຶນ' : 'ບໍ່ໄດ້ຮັບທຶນ',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
         ],
       ),
     );
